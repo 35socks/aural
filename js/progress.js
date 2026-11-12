@@ -1,10 +1,11 @@
-/* Saved progress in localStorage (falls back to memory if storage is blocked). */
+/* Saved progress and settings in localStorage (falls back to memory if storage is blocked). */
 (function (g) {
   const AT = g.AT;
   const KEY = "aural-trainer-progress-v1";
   const PASS_MARK = 70; // self-check target, not an official mark
+  const DEFAULT_SETTINGS = { inst: "mixed", live: true, view: "grid" };
 
-  let data = { stats: {}, mocks: [] };
+  let data = { stats: {}, mocks: [], settings: { ...DEFAULT_SETTINGS } };
   let storageOk = true;
 
   function load() {
@@ -13,7 +14,11 @@
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === "object") {
-          data = { stats: parsed.stats || {}, mocks: Array.isArray(parsed.mocks) ? parsed.mocks : [] };
+          data = {
+            stats: parsed.stats || {},
+            mocks: Array.isArray(parsed.mocks) ? parsed.mocks : [],
+            settings: { ...DEFAULT_SETTINGS, ...(parsed.settings || {}) },
+          };
         }
       }
     } catch (e) { storageOk = false; }
@@ -30,14 +35,17 @@
     PASS_MARK,
     load,
     storageOk: () => storageOk,
+    setting: (k) => data.settings[k],
+    setSetting(k, v) { data.settings[k] = v; save(); },
     stat(key) {
       const s = data.stats[key] || { attempts: 0, correct: 0 };
-      return { attempts: s.attempts, correct: s.correct, percent: s.attempts ? pct(s.correct, s.attempts) : null };
+      return { attempts: s.attempts, correct: s.correct, last: s.last || null, percent: s.attempts ? pct(s.correct, s.attempts) : null };
     },
     record(key, ok) {
       const s = (data.stats[key] = data.stats[key] || { attempts: 0, correct: 0 });
       s.attempts++;
       if (ok) s.correct++;
+      s.last = Date.now();
       save();
     },
     recordMock(score, total) {
@@ -45,7 +53,7 @@
       save();
     },
     mocks: () => data.mocks.map((m) => ({ ...m, percent: pct(m.score, m.total) })),
-    reset() { data = { stats: {}, mocks: [] }; save(); },
+    reset() { data = { stats: {}, mocks: [], settings: data.settings }; save(); }, // keeps your settings
     pct,
   };
   load();

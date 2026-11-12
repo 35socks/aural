@@ -7,17 +7,31 @@ Web Audio API, so there are no audio files. Headphones recommended.
 
 ## What it tests
 
-12 topics: tones and semitones, intervals, scales, chords, cadences, chord progressions,
-metre (simple and compound), rhythm features (dotted, Scotch snap, syncopation), tempo
-changes, dynamics, bass patterns and melodic memory.
+14 topics in four groups:
+
+- **Pitch & harmony:** tones and semitones, intervals, scales, chords, cadences, chord progressions.
+- **Rhythm, tempo & dynamics:** metre (simple and compound), rhythm features (dotted, Scotch snap, syncopation), tempo changes, dynamics.
+- **Texture & timbre:** bass patterns, melodic memory, instruments (piano, organ, guitar, strings, flute, clarinet, trumpet, marimba, bass).
+- **Exam-style practice:** a mixed excerpt, where one extract is followed by linked questions (a), (b), (c).
+
+Modes:
 
 - **Practise a topic:** instant feedback, explanation, unlimited replays.
-- **Entry check:** 24 questions (2 per topic), 3 plays each, answers revealed at the end.
-  The 70% target is a self-check benchmark, not an official SQA or college mark.
+- **Entry check:** 29 questions (2 per topic plus a 3-part excerpt), 3 plays each. The 70% target is a
+  self-check benchmark, not an official SQA or college mark.
 
-Progress is saved in the visitor's own browser (localStorage). Nothing is sent anywhere.
+**Real-time feedback:** a live level meter while the sound plays, a note roll with a moving playhead once
+you have answered, a running score, accuracy and streak, a block-per-question progress strip, and a status
+bar showing playback. In the entry check, **Live feedback** (on by default) shows right or wrong straight
+after each answer; switch it off for exam conditions, where answers only appear at the end.
 
-Keyboard: `R` replay, `1`-`9` choose an answer, `Enter` continue.
+**Instruments:** every question is played on an instrument chosen at random to suit it (chords on
+chord-capable instruments, fast rhythms on quick-attack ones). Use the **Instrument** menu to fix one
+instrument for everything except the Instruments topic.
+
+Progress and settings are saved in the visitor's own browser (localStorage). Nothing is sent anywhere.
+
+Keyboard: `R` replay, `1`-`9` choose an answer, `Enter` continue (or lock in, in exam conditions).
 
 ## Put it on GitHub Pages
 
@@ -25,7 +39,7 @@ Keyboard: `R` replay, `1`-`9` choose an answer, `Enter` continue.
 
 1. Create a new repository on github.com (for example `aural-trainer`), set to Public.
 2. Click **Add file > Upload files** and drag in the *contents* of this folder
-   (`index.html`, `style.css`, `.nojekyll`, `README.md` and the `js` folder).
+   (`index.html`, `style.css`, `CNAME`, `README.md` and the `js` folder).
    `index.html` must be at the top level of the repository, not inside another folder.
 3. Commit the upload.
 4. Go to **Settings > Pages**. Under **Build and deployment**, set **Source** to
@@ -67,10 +81,10 @@ python3 -m http.server 8000
 
 | File | Purpose |
 | --- | --- |
-| `index.html`, `style.css` | Page and styling (light and dark mode) |
+| `index.html`, `style.css` | Page and styling (blocky dark theme) |
 | `js/theory.js` | Scales, chords, cadences, intervals |
-| `js/synth.js` | Web Audio sound engine |
-| `js/ex_pitch.js`, `ex_texture.js`, `ex_rhythm.js` | Question generators |
+| `js/synth.js` | Web Audio sound engine: instruments, live level meter |
+| `js/ex_pitch.js`, `ex_texture.js`, `ex_rhythm.js`, `ex_excerpt.js` | Question generators |
 | `js/exercises.js` | Topic list and mock test builder |
-| `js/progress.js` | Saved results |
+| `js/progress.js` | Saved results and settings |
 | `js/app.js` | Screens and input |

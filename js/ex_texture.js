@@ -79,9 +79,37 @@
       options: ["Alberti bass", "Walking bass", "Sustained chords"],
       correct: kind,
       events,
+      // Keep the instrument true to the pattern: block chords need a sound that sustains.
+      allow: [["piano", "guitar", "organ"], ["bass", "piano", "organ"], ["piano", "organ", "strings"]][kind],
       explanation: BASS_TEXT[kind],
     };
   }
 
-  AT.texture = { scaleNote, melodyMemory, bassPattern };
+  /** Timbre: name the instrument playing a short phrase. */
+  function instruments() {
+    const S = AT.synth;
+    const key = R.pick(S.ORDER);
+    const picks = R.shuffle([key, ...R.shuffle(S.ORDER.filter((k) => k !== key)).slice(0, 3)]);
+    const tonic = 60;
+    let idx = R.pick([0, 2, 4]);
+    const degrees = [idx];
+    for (let i = 0; i < 5; i++) {
+      idx = Math.min(8, Math.max(0, idx + R.pick([-2, -1, -1, 1, 1, 2])));
+      degrees.push(idx);
+    }
+    const events = degrees.map((d, i) =>
+      note(i * 0.45, i === degrees.length - 1 ? 1.1 : 0.42, scaleNote(tonic, d), 0.8));
+    return {
+      category: "instruments",
+      prompt: "A short phrase is played. Which instrument is playing?",
+      options: picks.map((k) => S.INSTRUMENTS[k].name),
+      correct: picks.indexOf(key),
+      events,
+      inst: key, // fixed: the answer is the sound itself, so the learner's instrument setting is ignored
+      hideInst: true,
+      explanation: S.INSTRUMENTS[key].desc,
+    };
+  }
+
+  AT.texture = { scaleNote, melodyMemory, bassPattern, instruments };
 })(typeof window !== "undefined" ? window : globalThis);

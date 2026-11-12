@@ -33,6 +33,7 @@
       options: METRES.map((m) => m[0]),
       correct: idx,
       events,
+      allow: AT.synth.AGILE,
       explanation: `${label}: ${beats} main beats per bar, each split into ${subs}, so it is ${compound ? "compound" : "simple"} time. ` +
         (compound ? "Compound time feels like a lilting 1-2-3, 1-2-3." : "Simple time splits each beat into two."),
     };
@@ -72,6 +73,7 @@
       options: ["Straight rhythm", "Dotted rhythm", "Scotch snap", "Syncopation"],
       correct: kind,
       events,
+      allow: AT.synth.AGILE,
       explanation: RHYTHM_TEXT[kind],
     };
   }

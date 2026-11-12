@@ -3,21 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121316">
   <title>Aural Skills Trainer: HNC Music, SCQF Level 5</title>
-  <meta name="description" content="Free listening practice for SCQF Level 5 (National 5) music: intervals, scales, chords, cadences, metre and more.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%B5%3C/text%3E%3C/svg%3E">
+  <meta name="description" content="Free listening practice for SCQF Level 5 (National 5) music: intervals, scales, chords, cadences, metre, instruments and more, with instant feedback.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f2f2f3'/%3E%3Ctext x='50' y='72' font-size='66' font-family='monospace' font-weight='bold' text-anchor='middle' fill='%23121316'%3EA%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="top">
     <div class="wrap bar">
       <div class="brand">
-        <h1>Aural Skills Trainer</h1>
-        <span class="sub">HNC Music entry &middot; SCQF Level 5</span>
+        <h1 class="mark">Aural</h1>
+        <span class="suite">HNC Music entry &middot; SCQF 5</span>
       </div>
-      <nav>
-        <button class="btn small" data-nav="home">Home</button>
-        <button class="btn small" data-nav="progress">Progress</button>
+      <nav aria-label="Main">
+        <button class="navbtn" data-nav="home">Home</button>
+        <button class="navbtn" data-nav="progress">Progress</button>
       </nav>
     </div>
   </header>
@@ -26,16 +28,23 @@
 
   <noscript><p class="wrap">This trainer needs JavaScript to play and check sounds.</p></noscript>
 
-  <footer class="wrap foot">
+  <footer class="wrap disclaimer">
     A self-study aid built around the SCQF 5 (National 5) listening concepts. It is not an official assessment:
     colleges set their own entry requirements, so check with the course. Your results are stored only in this browser.
   </footer>
+
+  <div class="statusbar" role="status" aria-live="off">
+    <span id="status" class="st">&#9675; Idle</span>
+    <span class="sep">&middot;</span>
+    <span id="foot-info">Progress saved in this browser</span>
+  </div>
 
   <script src="js/theory.js"></script>
   <script src="js/synth.js"></script>
   <script src="js/ex_pitch.js"></script>
   <script src="js/ex_texture.js"></script>
   <script src="js/ex_rhythm.js"></script>
+  <script src="js/ex_excerpt.js"></script>
   <script src="js/exercises.js"></script>
   <script src="js/progress.js"></script>
   <script src="js/app.js"></script>

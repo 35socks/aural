@@ -93,6 +93,7 @@
       options: T.CHORD_QUALITIES.map((c) => c[0]),
       correct: idx,
       events,
+      allow: AT.synth.POLY,
       explanation: CHORD_TEXT[name],
     };
   }
@@ -113,6 +114,7 @@
         keyChord(1.4, 1.0, tonic, first, 0.75),
         keyChord(2.5, 1.8, tonic, second, 0.8),
       ],
+      allow: AT.synth.POLY,
       explanation: cad.text,
     };
   }
@@ -138,6 +140,7 @@
       options: picks.map((i) => fmt(PROGRESSIONS[i])),
       correct: picks.indexOf(answer),
       events: PROGRESSIONS[answer].map((d, i) => keyChord(i * 1.25, 1.2, tonic, d, 0.78)),
+      allow: AT.synth.POLY,
       explanation: `The progression was ${fmt(PROGRESSIONS[answer])}. I is home, V pulls back to I, and II and VI are minor chords.`,
     };
   }
