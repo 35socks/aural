@@ -17,7 +17,8 @@
   const PAGE = document.body.dataset.page || "home";
   const root = document.getElementById("app");
   const fromHash = ["crib", "progress"].includes(g.location.hash.slice(1)) ? g.location.hash.slice(1) : "home";
-  const state = { screen: PAGE === "groups" ? "groups" : fromHash, session: null, summary: null, confirmReset: false, audioError: false };
+  const SUBPAGES = ["groups", "learning"];
+  const state = { screen: SUBPAGES.includes(PAGE) ? PAGE : fromHash, session: null, summary: null, confirmReset: false, audioError: false };
   let playTotal = 0;
 
   // ---------- tiny DOM helper (text is always set via textContent) ----------
@@ -61,8 +62,8 @@
   function go(screen) {
     S.stop();
     // Groups is its own page at /groups/; everything else lives on the main page.
-    if (screen === "groups" && PAGE !== "groups") { g.location.href = "groups/"; return; }
-    if (PAGE === "groups" && screen !== "groups" && screen !== "question") {
+    if (SUBPAGES.includes(screen) && PAGE !== screen) { g.location.href = (PAGE === "home" ? "" : "../") + screen + "/"; return; }
+    if (SUBPAGES.includes(PAGE) && screen !== PAGE && screen !== "question") {
       g.location.href = "../" + (screen === "home" ? "" : "#" + screen);
       return;
     }
@@ -560,6 +561,29 @@
             c.note && h("p", { class: "note" }, c.note)))))));
   }
 
+  function learningScreen() {
+    const heard = (notes) => {
+      const harmonic = notes.harmonic, list = notes.harmonic || notes.melodic;
+      const E = S.ev, T = AT.theory;
+      playEvents(harmonic ? [E.sustained(0, 1.8, list.map(T.freq), 0.8)]
+        : list.map((n, i) => E.tone(i * 0.5, i === list.length - 1 ? 1.2 : 0.55, [T.freq(n)], 0.8)));
+    };
+    const card = (c) => h("article", { class: "panel learn-card" },
+      h("h4", null, c.name),
+      h("p", null, c.body),
+      c.list && h("ul", { class: "learn-list" }, c.list.map((x) => h("li", null, x))),
+      c.hear && h("div", { class: "hear" }, c.hear.map(([label, notes]) => h("button", { class: "btn small", type: "button", onclick: () => heard(notes) }, "Play " + label))),
+      c.tip && h("p", { class: "tip" }, h("strong", null, "Tip: "), c.tip));
+    return h("div", { class: "learning" },
+      h("div", { class: "lead" }, h("h2", null, AT.learningIntro.title), h("p", null, AT.learningIntro.text)),
+      AT.learning.map((sec) => h("section", { class: "outcome" },
+        h("header", null, h("div", null, h("p", { class: "meta" }, sec.outcome ? `Outcome ${sec.outcome}` : "Everything"), h("h3", null, sec.title))),
+        h("div", { class: "crib-grid" }, sec.cards.map(card)),
+        sec.recall && h("details", { class: "recall" }, h("summary", null, "Cover and recall"),
+          h("p", { class: "note" }, "Cover the answer, say it out loud, then open it to check."),
+          sec.recall.map(([q, a]) => h("details", null, h("summary", null, q), h("p", null, a)))))));
+  }
+
   function progressScreen() {
     const mocks = P.mocks();
     return h("div", { class: "panel progress" },
@@ -592,7 +616,7 @@
 
   // ---------- render + input ----------
   function updateChrome() {
-    const navOn = state.screen === "progress" ? "progress" : state.screen === "crib" ? "crib" : state.screen === "groups" ? "groups" : "home";
+    const navOn = state.screen === "progress" ? "progress" : state.screen === "crib" ? "crib" : SUBPAGES.includes(state.screen) ? state.screen : "home";
     document.querySelectorAll("[data-nav]").forEach((b) => b.classList.toggle("on", b.dataset.nav === navOn));
     const pref = P.setting("inst");
     const info = [
@@ -604,7 +628,7 @@
   }
 
   function render() {
-    const screens = { home: homeScreen, question: questionScreen, results: resultsScreen, progress: progressScreen, crib: cribScreen, groups: groupsScreen };
+    const screens = { home: homeScreen, question: questionScreen, results: resultsScreen, progress: progressScreen, crib: cribScreen, groups: groupsScreen, learning: learningScreen };
     const active = document.activeElement;
     const inRoot = active && root.contains(active);
     const activeId = inRoot && active.id ? active.id : null;

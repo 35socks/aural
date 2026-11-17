@@ -266,3 +266,12 @@ table.t { border-collapse: collapse; width: 100%; }
 .field.text { width: 100%; padding-right: 12px; cursor: text; background-image: none; }
 .check { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--text); }
 .check input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+/* ---------- learning ---------- */
+.learn-card p { margin-top: 8px; font-size: 14px; }
+.learn-list { margin: 10px 0 0 18px; padding: 0; font-size: 13px; color: var(--text); display: grid; gap: 4px; }
+.hear { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.btn.small { padding: 6px 12px; font-size: 13px; }
+.learn-card .tip { color: var(--accent); font-size: 13px; }
+.recall { margin-top: 16px; }
+.recall details { margin-top: 4px; }
