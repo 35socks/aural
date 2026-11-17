@@ -16,9 +16,9 @@
 
   const PAGE = document.body.dataset.page || "home";
   const root = document.getElementById("app");
-  const fromHash = ["crib", "progress"].includes(g.location.hash.slice(1)) ? g.location.hash.slice(1) : "home";
+  const fromHash = ["crib", "progress", "lessons"].includes(g.location.hash.slice(1)) ? g.location.hash.slice(1) : "home";
   const SUBPAGES = ["groups", "learning"];
-  const state = { screen: SUBPAGES.includes(PAGE) ? PAGE : fromHash, session: null, summary: null, confirmReset: false, audioError: false };
+  const state = { lesson: null, run: null, screen: SUBPAGES.includes(PAGE) ? PAGE : fromHash, session: null, summary: null, confirmReset: false, audioError: false };
   let playTotal = 0;
 
   // ---------- tiny DOM helper (text is always set via textContent) ----------
@@ -68,6 +68,8 @@
       return;
     }
     state.screen = screen;
+    state.lesson = null;
+    state.run = null;
     state.confirmReset = false;
     if (screen !== "question") state.session = null;
     render();
@@ -352,8 +354,6 @@
     const mocks = P.mocks();
     const last = mocks.length ? mocks[mocks.length - 1] : null;
     const live = P.setting("live");
-    const pref = P.setting("inst");
-    const instOptions = [["mixed", "Mixed"], ...S.ORDER.map((k) => [k, S.INSTRUMENTS[k].name])];
     const total = CATEGORIES.reduce((n, c) => n + c.mock, 0);
 
     return h("div", { class: "home" },
@@ -379,10 +379,7 @@
           h("ol", null, DATES.map(([d, t]) => h("li", null, h("time", null, d), h("span", null, t)))),
           h("p", { class: "note" }, "100% attendance is required. Two attempts are allowed at each outcome."))),
       h("div", { class: "settings" },
-        h("h2", { class: "section-title" }, "Practise by outcome"),
-        h("label", { class: "meta lbl", for: "inst" }, "Instrument",
-          h("select", { class: "field", id: "inst", onchange: (e) => { P.setSetting("inst", e.target.value); render(); } },
-            instOptions.map(([k, name]) => h("option", { value: k, selected: k === pref }, name))))),
+        h("h2", { class: "section-title" }, "Practise by outcome")),
       OUTCOMES.map((o) => outcomeSection(o, last)));
   }
 
@@ -584,6 +581,190 @@
           sec.recall.map(([q, a]) => h("details", null, h("summary", null, q), h("p", null, a)))))));
   }
 
+  // ---------- lessons ----------
+  const LS = AT.lessons;
+  const KIT = LS.kit;
+  const DAY = 86400000;
+  const REVIEW_AFTER = [1, 3, 7, 21, 45]; // days between reviews, growing each time
+  const lessonRecs = () => P.setting("lessons") || {};
+  const checksOf = (lesson) => lesson.steps.map((st, i) => [st, i]).filter(([st]) => st.t === "check");
+  function lessonStatus(l) {
+    const r = lessonRecs()[l.id];
+    if (!r) return { label: "Not started", cls: "", mastered: false, due: false };
+    const mastered = r.score / r.total >= 0.75;
+    const due = mastered && Date.now() - r.when > REVIEW_AFTER[Math.min((r.n || 1) - 1, 4)] * DAY;
+    return { label: due ? `Review due (was ${r.score}/${r.total})` : mastered ? `Done ${r.score}/${r.total}` : `Try again (${r.score}/${r.total})`, cls: due ? "due" : mastered ? "ok" : "no", mastered, due };
+  }
+  const playSpec = (spec) => playEvents(LS.build(spec));
+  function openLesson(id) {
+    S.stop();
+    state.lesson = id;
+    state.run = { answers: {}, order: {}, finished: false };
+    render();
+    g.scrollTo(0, 0);
+  }
+  function finishLesson(lesson) {
+    const checks = checksOf(lesson);
+    const score = checks.filter(([st, i]) => state.run.answers[i] === st.answer).length;
+    const recs = { ...lessonRecs() };
+    const prev = recs[lesson.id];
+    recs[lesson.id] = { when: Date.now(), score, total: checks.length, n: (prev ? prev.n || 1 : 0) + 1 };
+    P.setSetting("lessons", recs);
+    state.run.finished = true;
+    state.run.score = score;
+    render();
+    g.scrollTo(0, 0);
+  }
+
+  const RHYTHM_FOR = {
+    4: [4], 2: [2, 2], 1: [1, 1, 1, 1], 0.5: Array(8).fill(0.5), 0.25: Array(16).fill(0.25),
+    3: [3, 1], 1.5: [1.5, 0.5, 1.5, 0.5], 0.75: [0.75, 0.25, 0.75, 0.25, 0.75, 0.25, 0.75, 0.25],
+  };
+  const hearBtn = (label, spec) => h("button", { class: "btn small", type: "button", onclick: () => playSpec(spec) }, label);
+  const keyEv = (m, i, gap) => S.ev.tone((i || 0) * (gap || 0), 1.3, [AT.theory.freq(m)], 0.8);
+
+  function lessonStep(lesson, step, i) {
+    const run = state.run;
+    switch (step.t) {
+      case "say":
+        return h("section", { class: "lstep" }, step.title && h("h4", null, step.title), h("p", null, step.text),
+          step.list && h("ul", { class: "learn-list" }, step.list.map((x) => h("li", null, x))));
+      case "tip":
+        return h("aside", { class: "ltip" }, h("strong", null, "Remember: "), step.text);
+      case "hear":
+        return h("section", { class: "lstep" }, step.text && h("p", null, step.text),
+          h("div", { class: "hear" }, step.buttons.map(([label, spec]) => hearBtn("Play: " + label, spec))));
+      case "values":
+        return h("div", { class: "lvalues" }, step.items.map((it) => {
+          const lens = RHYTHM_FOR[it.beats];
+          const holder = h("span", { class: "nsvg" });
+          holder.innerHTML = KIT.noteSvg(it.kind, it.dotted);
+          return h("article", { class: "panel lvalue" }, holder, h("h4", null, it.name),
+            h("p", { class: "note" }, `US name: ${it.us}`),
+            h("p", { class: "lbeats" }, `${it.beats === 0.5 ? "1/2" : it.beats === 0.25 ? "1/4" : it.beats === 0.75 ? "3/4" : it.beats === 1.5 ? "1 1/2" : it.beats} ${it.beats === 1 ? "beat" : "beats"}`),
+            KIT.barRow([{ len: Math.min(it.beats, 4), label: "" }], 4),
+            hearBtn("Hear it", { rhythm: lens }));
+        }));
+      case "tree":
+        return h("div", { class: "lstep" }, KIT.tree());
+      case "bars":
+        return h("section", { class: "lstep" }, step.caption && h("p", null, step.caption),
+          step.rows.map((r) => h("div", { class: "lrow" }, h("p", { class: "meta" }, r.label), KIT.barRow(r.items), hearBtn("Hear it", r.hear))));
+      case "keys": {
+        const kb = KIT.keyboard(step.from, step.to, step.mark, (m) => playEvents([keyEv(m)]));
+        return h("section", { class: "lstep" }, step.caption && h("p", null, step.caption), kb,
+          step.mark.length > 1 && h("div", { class: "hear" },
+            h("button", { class: "btn small", type: "button", onclick: () => playEvents(step.mark.map((m, k) => keyEv(m, k, 0.55))) }, "Play marked notes one by one"),
+            h("button", { class: "btn small", type: "button", onclick: () => playEvents([S.ev.sustained(0, 1.8, step.mark.map(AT.theory.freq), 0.8)]) }, "Play marked notes together")));
+      }
+      case "check": {
+        const order = run.order[i] || (run.order[i] = AT.R.shuffle(step.options.map((_, k) => k)));
+        const chosen = run.answers[i];
+        const answered = chosen !== undefined;
+        return h("section", { class: "lcheck panel" },
+          h("p", { class: "meta" }, step.review ? "Review from an earlier lesson" : "Check yourself"),
+          h("h4", null, step.q),
+          step.hear && h("div", { class: "hear" }, hearBtn("Play the sound", step.hear)),
+          h("div", { class: "opts" }, order.map((orig, pos) => h("button", {
+            class: "opt" + (answered ? (orig === step.answer ? " right" : orig === chosen ? " wrong" : "") : ""),
+            type: "button", disabled: answered,
+            onclick: () => { run.answers[i] = orig; render(); },
+          }, h("span", { class: "num" }, String(pos + 1)), step.options[orig]))),
+          answered && h("p", { class: "lwhy " + (chosen === step.answer ? "ok" : "no") }, (chosen === step.answer ? "Correct. " : "Not quite. ") + step.why));
+      }
+      default: return h("div");
+    }
+  }
+
+  function lessonDetail(lesson) {
+    const run = state.run;
+    const checks = checksOf(lesson);
+    const done = checks.filter(([, i]) => run.answers[i] !== undefined).length;
+    const idx = LS.LESSONS.indexOf(lesson);
+    const next = LS.LESSONS[idx + 1];
+    const cat = lesson.practise && byKey(lesson.practise);
+    const header = h("div", { class: "lead" },
+      h("button", { class: "btn small", type: "button", onclick: () => go("lessons") }, "All lessons"),
+      h("p", { class: "meta", style: "margin-top:16px" }, `Lesson ${idx + 1} of ${LS.LESSONS.length} · about ${lesson.mins} minutes`),
+      h("h2", null, lesson.title),
+      h("p", null, h("strong", null, "By the end you can: "), lesson.goal),
+      h("p", { class: "note" }, lesson.why));
+    if (run.finished) {
+      const pass = run.score / checks.length >= 0.75;
+      return h("div", { class: "lessons" }, header,
+        h("div", { class: "panel lresult" },
+          h("p", { class: "meta" }, "Lesson result"),
+          h("h3", null, `${run.score} of ${checks.length} correct`),
+          h("p", { class: pass ? "ok" : "no" }, pass
+            ? "Well done. Now make it stick: do ten practice questions today and come back to this lesson in a few days."
+            : "Not yet secure. That is normal: read the explanations you missed, replay the sounds and try the lesson again."),
+          h("p", { class: "meta" }, "Remember"),
+          h("ul", { class: "learn-list" }, lesson.remember.map((x) => h("li", null, x))),
+          h("div", { class: "row", style: "margin-top:16px" },
+            cat && h("button", { class: "btn primary", onclick: () => startSession("practice", cat.key, [generate(cat.key)]) }, `Practise ${cat.name.toLowerCase()}`),
+            !pass && h("button", { class: "btn", onclick: () => openLesson(lesson.id) }, "Try this lesson again"),
+            next && h("button", { class: "btn", onclick: () => openLesson(next.id) }, `Next: ${next.title}`),
+            h("button", { class: "btn", onclick: () => go("lessons") }, "All lessons"))));
+    }
+    return h("div", { class: "lessons" }, header,
+      h("div", { class: "lprog" }, meter(checks.length ? Math.round((done * 100) / checks.length) : 100, "Checks answered"),
+        h("span", { class: "meta" }, `${done} of ${checks.length} checks answered`)),
+      lesson.steps.map((st, i) => lessonStep(lesson, st, i)),
+      h("section", { class: "panel lremember" },
+        h("h3", null, "Remember"),
+        h("ul", { class: "learn-list" }, lesson.remember.map((x) => h("li", null, x))),
+        h("div", { class: "row", style: "margin-top:16px" },
+          h("button", { class: "btn primary", disabled: done < checks.length, onclick: () => finishLesson(lesson) },
+            done < checks.length ? `Answer ${checks.length - done} more check${checks.length - done === 1 ? "" : "s"} to finish` : "Finish lesson"))));
+  }
+
+  function lessonsScreen() {
+    if (state.lesson) {
+      const lesson = LS.LESSONS.find((l) => l.id === state.lesson);
+      if (lesson) return lessonDetail(lesson);
+    }
+    const stat = LS.LESSONS.map(lessonStatus);
+    const nextIdx = stat.findIndex((s) => !s.mastered);
+    const dueIdx = stat.findIndex((s) => s.due);
+    const doneCount = stat.filter((s) => s.mastered).length;
+    const groups = [["Rhythm and time", 0, 6], ["Pitch, intervals and scales", 6, 9], ["Chords and progressions", 10, 13], ["Exam skills", 13, 14]];
+    const card = (l, i) => h("article", { class: "panel lcard" },
+      h("p", { class: "meta" }, `Lesson ${i + 1} · ${l.mins} min`),
+      h("h4", null, l.title),
+      h("p", { class: "note" }, l.goal),
+      h("div", { class: "lfoot" },
+        h("span", { class: "chip " + stat[i].cls }, stat[i].label),
+        h("button", { class: "btn small" + (i === nextIdx ? " primary" : ""), onclick: () => openLesson(l.id) }, stat[i].mastered ? "Revisit" : stat[i].label === "Not started" ? "Start" : "Retry")));
+    return h("div", { class: "lessons" },
+      h("div", { class: "lead" },
+        h("h2", null, "Lessons"),
+        h("p", null, "Start from nothing. These lessons assume you know no music theory: they explain what a crotchet and a minim are, what a semitone is, how chords are built, and train your ear on each idea as you go. Do them in order, 10 to 15 minutes a day.")),
+      h("div", { class: "split" },
+        h("section", { class: "panel" },
+          h("p", { class: "meta" }, "How every lesson works"),
+          h("ol", { class: "lhow" },
+            h("li", null, h("strong", null, "Learn it. "), "A short explanation with a picture, one idea at a time."),
+            h("li", null, h("strong", null, "Hear it. "), "Press the buttons to listen. Piano and drums play every example."),
+            h("li", null, h("strong", null, "Check it. "), "Answer questions straight away, with sounds. You see why an answer is right or wrong."),
+            h("li", null, h("strong", null, "Practise it. "), "Finish with real exam-style questions on the same topic."),
+            h("li", null, h("strong", null, "Come back. "), "Done lessons return for review after 1, 3, 7 and 21 days. Spaced review is how you keep it."))),
+        h("aside", { class: "panel" },
+          h("p", { class: "meta" }, "Your progress"),
+          h("h3", null, `${doneCount} of ${LS.LESSONS.length} lessons done`),
+          meter(Math.round((doneCount * 100) / LS.LESSONS.length), "Lessons done"),
+          dueIdx >= 0 && h("p", { class: "note" }, `Review due: ${LS.LESSONS[dueIdx].title}`),
+          h("div", { class: "row", style: "margin-top:16px" }, nextIdx >= 0
+            ? h("button", { class: "btn primary", onclick: () => openLesson(LS.LESSONS[dueIdx >= 0 ? dueIdx : nextIdx].id) }, dueIdx >= 0 ? "Do your review" : `Continue: ${LS.LESSONS[nextIdx].title}`)
+            : h("p", { class: "ok" }, "All lessons done. Sit a mock paper.")))),
+      groups.map(([title, a, b]) => h("section", { class: "outcome" },
+        h("header", null, h("div", null, h("h3", null, title))),
+        h("div", { class: "crib-grid" }, LS.LESSONS.slice(a, b).map((l, k) => card(l, a + k))))),
+      h("section", { class: "outcome" },
+        h("header", null, h("div", null, h("p", { class: "meta" }, "Suggested plan, 20 minutes a day"), h("h3", null, "Two weeks to the mock exam"))),
+        h("div", { class: "crib-grid" }, LS.PLAN.map(([when, what, text]) => h("article", { class: "panel" }, h("p", { class: "meta" }, when), h("h4", null, what), h("p", { class: "note" }, text)))),
+        h("p", { class: "note", style: "margin-top:16px" }, "Each day: one lesson (10 minutes), then 10 practice questions on that topic, then 2 minutes recalling yesterday's lesson without looking.")));
+  }
+
   function progressScreen() {
     const mocks = P.mocks();
     return h("div", { class: "panel progress" },
@@ -616,19 +797,15 @@
 
   // ---------- render + input ----------
   function updateChrome() {
-    const navOn = state.screen === "progress" ? "progress" : state.screen === "crib" ? "crib" : SUBPAGES.includes(state.screen) ? state.screen : "home";
+    const navOn = state.screen === "progress" ? "progress" : state.screen === "crib" ? "crib" : state.screen === "lessons" ? "lessons" : SUBPAGES.includes(state.screen) ? state.screen : "home";
     document.querySelectorAll("[data-nav]").forEach((b) => b.classList.toggle("on", b.dataset.nav === navOn));
-    const pref = P.setting("inst");
-    const info = [
-      P.storageOk() ? "Saved in this browser" : "Storage blocked",
-      `Instrument: ${pref === "mixed" ? "mixed" : S.INSTRUMENTS[pref].name}`,
-    ].join(" · ");
+    const info = [P.storageOk() ? "Saved in this browser" : "Storage blocked", "Sounds: piano and drums"].join(" · ");
     const node = document.getElementById("foot-info");
     if (node && node.textContent !== info) node.textContent = info;
   }
 
   function render() {
-    const screens = { home: homeScreen, question: questionScreen, results: resultsScreen, progress: progressScreen, crib: cribScreen, groups: groupsScreen, learning: learningScreen };
+    const screens = { home: homeScreen, question: questionScreen, results: resultsScreen, progress: progressScreen, crib: cribScreen, groups: groupsScreen, learning: learningScreen, lessons: lessonsScreen };
     const active = document.activeElement;
     const inRoot = active && root.contains(active);
     const activeId = inRoot && active.id ? active.id : null;

@@ -22,8 +22,11 @@ Answers are hidden until the end unless you switch on "Show answers as I go".
 **Practice:** unlimited questions per topic with instant feedback and an explanation. A live level meter and a note roll
 with a moving playhead show what you are hearing.
 
-Also included: a **crib sheet** page (from the one-page revision sheet), the term's key dates, and an **Instrument** menu so
-you can hear everything on the instrument you play. Progress is saved in your own browser (localStorage), and nothing is sent anywhere.
+**Lessons:** a teach-from-zero course (14 lessons: beat, note lengths, rests, dots, time signatures, intervals, scales, chords, progressions, exam technique). Each lesson explains, plays examples, asks check questions with sounds, then sends you to practice, and finished lessons come back for review after 1, 3, 7 and 21 days. **Learning** has memory tricks for each topic.
+
+Sounds are a modelled piano and a small drum kit (kick, snare, hi-hat, rim, tom), all generated in the browser.
+
+Also included: a **crib sheet** page (from the one-page revision sheet), the term's key dates,. Progress is saved in your own browser (localStorage), and nothing is sent anywhere.
 
 Keyboard: `R` replay, `1`-`9` choose an answer, `Enter` continue (or lock in, in exam conditions).
 

@@ -32,7 +32,7 @@
     const compound = subs === 3;
     return {
       category: "timeSignatures",
-      prompt: "Listen to the pulse. A high click marks the first beat of each bar. What is the time signature?",
+      prompt: "Listen to the pulse. A low kick drum marks the first beat of each bar and hi-hat taps mark the other beats. What is the time signature?",
       options: METRES.map((m) => m[0]),
       correct: idx,
       events,
@@ -88,7 +88,7 @@
     }
     return {
       category: "rhythms",
-      prompt: "Four clicks count you in, then a one-bar rhythm is played twice in 4/4. Which rhythm is it?",
+      prompt: "Four hi-hat taps count you in, then a one-bar rhythm is played twice in 4/4. Which rhythm is it?",
       options: picks.map((i) => describe(PATTERNS[i])),
       correct: picks.indexOf(answer),
       events,

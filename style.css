@@ -275,3 +275,54 @@ table.t { border-collapse: collapse; width: 100%; }
 .learn-card .tip { color: var(--accent); font-size: 13px; }
 .recall { margin-top: 16px; }
 .recall details { margin-top: 4px; }
+
+/* ---------- lessons ---------- */
+.lessons .lead h2 { margin-top: 4px; }
+.lstep { margin-top: 28px; max-width: 720px; }
+.lstep h4 { font: 500 20px/1.3 var(--serif); margin-bottom: 8px; }
+.lstep p { margin-top: 8px; font-size: 15px; }
+.lstep .learn-list { font-size: 14px; margin-top: 12px; }
+.lstep .hear { margin-top: 14px; }
+.ltip { margin-top: 20px; max-width: 720px; padding: 14px 18px; border-left: 3px solid var(--accent); background: rgba(217, 165, 76, .07); border-radius: 0 10px 10px 0; font-size: 14px; }
+.ltip strong { color: var(--accent); }
+.lprog { display: flex; align-items: center; gap: 16px; max-width: 720px; margin-bottom: 8px; }
+.lprog .bar-meter { flex: 1; }
+.lvalues { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-top: 24px; }
+.lvalue { padding: 18px; display: grid; gap: 6px; justify-items: start; }
+.lvalue .nsvg { color: var(--fg); height: 68px; }
+.lvalue .lbeats { font: 500 18px var(--serif); color: var(--accent); }
+.lvalue .lbar { width: 100%; margin: 6px 0 8px; }
+.lbar { display: flex; width: 100%; max-width: 640px; height: 30px; border: 1px solid var(--line-hi); border-radius: 6px; overflow: hidden; background: var(--bg); }
+.lseg { display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--on-accent); background: var(--accent); border-right: 2px solid var(--bg); white-space: nowrap; overflow: hidden; }
+.lseg:last-child { border-right: 0; }
+.lseg.rest { background: var(--raise); color: var(--muted); }
+.lrow { margin-top: 18px; }
+.lrow .lbar { margin: 6px 0 10px; }
+.ltree { display: grid; gap: 6px; max-width: 640px; }
+.ltree-row { display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: center; font-size: 13px; }
+.ltree-name { color: var(--muted); }
+.ltree-segs { display: flex; height: 26px; gap: 2px; }
+.ltree-seg { flex: 1; background: var(--accent); border-radius: 3px; opacity: .85; }
+.kb { width: 100%; max-width: 640px; height: auto; margin-top: 14px; display: block; }
+.kb .wk { fill: #e9e6df; stroke: #141516; stroke-width: 1; cursor: pointer; }
+.kb .wk:hover { fill: #fff; }
+.kb .bk { fill: #1d1d1f; stroke: #000; cursor: pointer; }
+.kb .bk:hover { fill: #3a3a3d; }
+.kb .hi { fill: var(--accent); }
+.kb .wk.hi:hover { fill: #e8b865; }
+.kb .kl { font: 500 12px var(--sans); fill: #555; pointer-events: none; }
+.lcheck { margin-top: 24px; max-width: 720px; padding: 20px; }
+.lcheck h4 { margin: 6px 0 14px; font-size: 17px; }
+.lcheck .opts { display: grid; gap: 8px; margin-top: 14px; }
+.lcheck .opt { min-height: 48px; font-size: 15px; }
+.lwhy { margin-top: 14px; font-size: 14px; }
+.lremember, .lresult { margin-top: 32px; max-width: 720px; }
+.lresult h3 { margin: 4px 0 10px; font-size: 28px; }
+.lhow { margin: 12px 0 0 18px; display: grid; gap: 8px; font-size: 14px; }
+.lcard { display: grid; gap: 8px; align-content: space-between; }
+.lcard .note { margin-top: 0; }
+.lfoot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
+.chip { font-size: 12px; color: var(--muted); }
+.chip.ok { color: var(--good); }
+.chip.no { color: var(--bad); }
+.chip.due { color: var(--accent); }
