@@ -601,7 +601,11 @@
     const inRoot = active && root.contains(active);
     const activeId = inRoot && active.id ? active.id : null;
     const label = inRoot && !activeId && active.tagName === "BUTTON" ? active.textContent : null;
-    root.replaceChildren(screens[state.screen]());
+    try {
+      root.replaceChildren(screens[state.screen]());
+    } catch (err) {
+      root.replaceChildren(h("div", { class: "alert", role: "alert" }, `This page could not load: ${err && err.message}. Try a hard refresh (Ctrl+Shift+R) and tell the developer this message.`));
+    }
     if (activeId) {
       const el = document.getElementById(activeId);
       if (el && !el.disabled) el.focus({ preventScroll: true });
