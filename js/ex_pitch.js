@@ -120,15 +120,20 @@
 
   // ---- Outcome 2(b): four-note chords, including major and minor 7ths ----
   function sevenths() {
-    const idx = R.below(T.SEVENTHS.length);
-    const ch = T.SEVENTHS[idx];
+    const CHORDS = [
+      { name: "Major", notes: T.TRIADS[0].notes, text: "Major triad: root, major 3rd and perfect 5th (4 + 3 semitones). Only three notes, and it sounds bright." },
+      { name: "Minor", notes: T.TRIADS[1].notes, text: "Minor triad: root, minor 3rd and perfect 5th (3 + 4 semitones). Only three notes, and it sounds darker." },
+      ...T.SEVENTHS,
+    ];
+    const idx = R.below(CHORDS.length);
+    const ch = CHORDS[idx];
     const harmonic = R.chance(0.6);
     const root = R.range(48, 58);
     const notes = ch.notes.map((n) => root + n);
     return {
       category: "sevenths",
-      prompt: `A four-note chord is played ${harmonic ? "all together" : "one note at a time"}. What type of chord is it?`,
-      options: T.SEVENTHS.map((c) => c.name),
+      prompt: `A chord is played ${harmonic ? "all together" : "one note at a time"}. What type of chord is it?`,
+      options: CHORDS.map((c) => c.name),
       correct: idx,
       events: playShape(notes, harmonic, 0),
       allow: harmonic ? AT.synth.POLY : undefined,

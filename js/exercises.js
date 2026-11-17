@@ -21,7 +21,7 @@
     { key: "triads", outcome: 2, pc: "2(a)", name: "Triads", mock: 7,
       blurb: "Major and minor triads, played melodically or harmonically.", gen: () => AT.pitch.triads() },
     { key: "sevenths", outcome: 2, pc: "2(b)", name: "Four-note chords", mock: 6,
-      blurb: "Major 7th, minor 7th and dominant 7th chords.", gen: () => AT.pitch.sevenths() },
+      blurb: "Major and minor chords, plus major 7th, minor 7th and dominant 7th chords.", gen: () => AT.pitch.sevenths() },
     { key: "progressions", outcome: 2, pc: "2(c)", name: "Chord progressions", mock: 7,
       blurb: "Three and four chord progressions, named by number or by chord name.", gen: () => AT.pitch.progressions() },
     { key: "rhythms", outcome: 3, pc: "3(a)", name: "Rhythms", mock: 5,
