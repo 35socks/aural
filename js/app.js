@@ -77,7 +77,11 @@
     g.scrollTo(0, 0);
   }
 
-  const startMock = (outcomes) => startSession("mock", null, mockTest(outcomes), P.setting("live"), outcomes);
+  const startMock = (outcomes, scale, groupId) => {
+    startSession("mock", null, mockTest(outcomes, scale), P.setting("live"), outcomes);
+    state.session.groupId = groupId || null;
+    state.session.scale = scale || 1;
+  };
 
   function startQuestion() {
     const s = state.session;
@@ -173,6 +177,11 @@
     sections.forEach((sec) => { sec.pass = sec.score >= sec.o.pass; });
     const score = sections.reduce((n, x) => n + x.score, 0);
     P.recordMock(score, s.questions.length, sections.map((x) => [x.o.n, x.score, x.total]));
+    if (s.groupId) {
+      const groups = P.setting("groups").map((gr) => gr.id === s.groupId
+        ? { ...gr, last: { when: Date.now(), score, total: s.questions.length, sections: sections.map((x) => [x.o.n, x.score, x.total]) } } : gr);
+      P.setSetting("groups", groups);
+    }
     state.summary = { sections, total: s.questions.length, score, timedOut: !!timedOut, full: sections.length === OUTCOMES.length };
     state.session = null;
     state.screen = "results";
@@ -486,6 +495,47 @@
         h("button", { class: "btn", onclick: () => go("home") }, "Back to practice")));
   }
 
+  function groupsScreen() {
+    const groups = P.setting("groups");
+    const save = (list) => { P.setSetting("groups", list); render(); };
+    const add = (e) => {
+      e.preventDefault();
+      const f = e.target;
+      const name = f.elements.name.value.trim();
+      const outcomes = OUTCOMES.map((o) => o.n).filter((n) => f.elements["o" + n].checked);
+      if (!name || !outcomes.length) return;
+      save([...groups, { id: String(Date.now()), name, outcomes, scale: Number(f.elements.scale.value) }]);
+    };
+    return h("div", { class: "groups" },
+      h("div", { class: "lead" },
+        h("h2", null, "Groups"),
+        h("p", null, "Set up the group Patrick puts you in. Each group gets its own test, made from the outcomes it covers and marked the same way as the mock exam.")),
+      groups.length === 0 && h("p", { class: "note" }, "No groups yet. Add one below."),
+      h("div", { class: "group-list" }, groups.map((gr) => {
+        const count = gr.outcomes.reduce((n, o) => n + CATEGORIES.filter((c) => c.outcome === o)
+          .reduce((m, c) => m + (gr.scale < 1 ? Math.max(1, Math.round(c.mock * gr.scale)) : c.mock), 0), 0);
+        return h("article", { class: "panel group-card" },
+          h("div", null,
+            h("h3", null, gr.name),
+            h("p", { class: "meta" }, `${gr.outcomes.map((n) => `Outcome ${n}`).join(", ")} · ${count} questions · ${minutesFor(count)} minutes`),
+            h("p", { class: "note" }, gr.last
+              ? `Last test ${gr.last.score}/${gr.last.total} on ${fmtDate(gr.last.when)}: ${gr.last.sections.map(([n, sc, t]) => `O${n} ${sc}/${t}`).join(", ")}`
+              : "No test taken yet")),
+          h("div", { class: "row" },
+            h("button", { class: "btn primary", onclick: () => startMock(gr.outcomes, gr.scale, gr.id) }, "Start test"),
+            h("button", { class: "btn", onclick: () => save(groups.filter((x) => x.id !== gr.id)) }, "Remove")));
+      })),
+      h("form", { class: "panel group-form", onsubmit: add },
+        h("h3", null, "Add a group"),
+        h("label", { class: "meta" }, "Group name", h("input", { class: "field text", name: "name", required: true, maxlength: 40, placeholder: "Group A" })),
+        h("fieldset", null, h("legend", { class: "meta" }, "Outcomes in this group's test"),
+          OUTCOMES.map((o) => h("label", { class: "check" }, h("input", { type: "checkbox", name: "o" + o.n, checked: true }), `Outcome ${o.n}: ${o.name}`))),
+        h("label", { class: "meta" }, "Length",
+          h("select", { class: "field", name: "scale" },
+            h("option", { value: "1" }, "Full length"), h("option", { value: "0.5" }, "Short, about half"))),
+        h("div", { class: "actions" }, h("button", { class: "btn primary", type: "submit" }, "Add group"))));
+  }
+
   function cribScreen() {
     return h("div", { class: "crib" },
       h("div", { class: "lead" },
@@ -534,7 +584,7 @@
 
   // ---------- render + input ----------
   function updateChrome() {
-    const navOn = state.screen === "progress" ? "progress" : state.screen === "crib" ? "crib" : "home";
+    const navOn = state.screen === "progress" ? "progress" : state.screen === "crib" ? "crib" : state.screen === "groups" ? "groups" : "home";
     document.querySelectorAll("[data-nav]").forEach((b) => b.classList.toggle("on", b.dataset.nav === navOn));
     const pref = P.setting("inst");
     const info = [
@@ -546,7 +596,7 @@
   }
 
   function render() {
-    const screens = { home: homeScreen, question: questionScreen, results: resultsScreen, progress: progressScreen, crib: cribScreen };
+    const screens = { home: homeScreen, question: questionScreen, results: resultsScreen, progress: progressScreen, crib: cribScreen, groups: groupsScreen };
     const active = document.activeElement;
     const inRoot = active && root.contains(active);
     const activeId = inRoot && active.id ? active.id : null;

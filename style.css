@@ -254,3 +254,15 @@ table.t { border-collapse: collapse; width: 100%; }
   .feedback { animation: rise .2s var(--ease); }
   @keyframes rise { from { transform: translateY(4px); opacity: 0; } to { transform: none; opacity: 1; } }
 }
+
+/* ---------- groups ---------- */
+.group-list { display: grid; gap: 16px; margin-bottom: 32px; }
+.group-card { display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; }
+.group-card .note { margin-top: 8px; }
+.group-form { display: grid; gap: 16px; max-width: 520px; }
+.group-form label.meta { display: grid; gap: 8px; }
+.group-form fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
+.group-form legend { padding: 0; margin-bottom: 8px; }
+.field.text { width: 100%; padding-right: 12px; cursor: text; background-image: none; }
+.check { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--text); }
+.check input { accent-color: var(--accent); width: 16px; height: 16px; }

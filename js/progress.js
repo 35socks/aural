@@ -2,7 +2,7 @@
 (function (g) {
   const AT = g.AT;
   const KEY = "aural-trainer-progress-v2";
-    const DEFAULT_SETTINGS = { inst: "mixed", live: false };
+    const DEFAULT_SETTINGS = { inst: "mixed", live: false, groups: [] };
 
   let data = { stats: {}, mocks: [], settings: { ...DEFAULT_SETTINGS } };
   let storageOk = true;

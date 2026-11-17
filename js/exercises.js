@@ -47,13 +47,14 @@
   const generate = (key) => prepare(byKey(key).gen());
 
   /** A paper for the given outcomes (all three by default), in outcome order, one mark per question. */
-  function mockTest(outcomes) {
+  function mockTest(outcomes, scale) {
     const wanted = outcomes && outcomes.length ? outcomes : OUTCOMES.map((o) => o.n);
     const qs = [];
     for (const n of wanted) {
       const section = [];
       for (const c of CATEGORIES.filter((x) => x.outcome === n)) {
-        for (let i = 0; i < c.mock; i++) section.push(prepare(c.gen()));
+        const n = scale && scale < 1 ? Math.max(1, Math.round(c.mock * scale)) : c.mock;
+        for (let i = 0; i < n; i++) section.push(prepare(c.gen()));
       }
       qs.push(...AT.R.shuffle(section));
     }
