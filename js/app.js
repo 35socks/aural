@@ -14,8 +14,10 @@
     ["12 Jan", "Last day to resit, 9-11 am, L309b"],
   ];
 
+  const PAGE = document.body.dataset.page || "home";
   const root = document.getElementById("app");
-  const state = { screen: "home", session: null, summary: null, confirmReset: false, audioError: false };
+  const fromHash = ["crib", "progress"].includes(g.location.hash.slice(1)) ? g.location.hash.slice(1) : "home";
+  const state = { screen: PAGE === "groups" ? "groups" : fromHash, session: null, summary: null, confirmReset: false, audioError: false };
   let playTotal = 0;
 
   // ---------- tiny DOM helper (text is always set via textContent) ----------
@@ -58,6 +60,12 @@
   // ---------- state changes ----------
   function go(screen) {
     S.stop();
+    // Groups is its own page at /groups/; everything else lives on the main page.
+    if (screen === "groups" && PAGE !== "groups") { g.location.href = "groups/"; return; }
+    if (PAGE === "groups" && screen !== "groups" && screen !== "question") {
+      g.location.href = "../" + (screen === "home" ? "" : "#" + screen);
+      return;
+    }
     state.screen = screen;
     state.confirmReset = false;
     if (screen !== "question") state.session = null;
