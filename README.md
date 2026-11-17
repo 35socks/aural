@@ -30,6 +30,19 @@ Also included: a **crib sheet** page (from the one-page revision sheet), the ter
 
 Keyboard: `R` replay, `1`-`9` choose an answer, `Enter` continue (or lock in, in exam conditions).
 
+## What's new in v2
+
+- **Today dashboard**: daily goal, practice streak, XP and levels, with one-click Smart practice (weakest topics first), a 10-question Daily challenge and a mistakes review.
+- **Mistakes bank**: every wrong answer is saved with its sound; get it right in review and it leaves the bank.
+- **Session builder**: pick any topics and a length.
+- **Five extension topics** (not in the mock): descending intervals, cadences, melodic shape, simple vs compound beat, missing scale note.
+- **Progress insights**: questions per day, 30-day accuracy trend, practice calendar, achievements (18).
+- **Tools**: on-screen piano (also playable from the computer keyboard) and a metronome.
+- **Settings**: volume, light/dark theme, daily goal, animations, backup and restore as JSON.
+- **Installable and offline** (PWA: `manifest.webmanifest`, `sw.js`, `icon.svg`).
+
+Still no build step, no server and no dependencies, so it deploys to GitHub Pages exactly as before. When you change files, bump `CACHE` in `sw.js` and the `?v=` numbers.
+
 ## Put it on GitHub Pages
 
 **Option A: in the browser (no git needed)**

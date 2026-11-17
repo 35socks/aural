@@ -231,7 +231,7 @@
     for (let i = 0; i < curve.length; i++) curve[i] = Math.tanh((i / (curve.length - 1)) * 4 - 2);
     shaper.curve = curve;
     master = ctx.createGain();
-    master.gain.value = 1.5;
+    master.gain.value = 1.5 * (g.AT.volume == null ? 0.8 : g.AT.volume) / 0.8;
     const pre = ctx.createGain();
     pre.gain.value = 0.5;
     pre.connect(shaper);
@@ -332,6 +332,24 @@
     return secs;
   }
 
+  /** Plays one piano note right now without cutting off anything already sounding (for the keyboard tool). */
+  function tap(freq, dur, vol) {
+    if (!init()) return false;
+    if (ctx.state === "suspended") ctx.resume();
+    const buf = pianoBuf(freq);
+    const t = ctx.currentTime + 0.01, tau = 0.07;
+    const gn = ctx.createGain();
+    gn.gain.setValueAtTime((vol || 0.8) * 0.42, t);
+    gn.gain.setValueAtTime((vol || 0.8) * 0.42, t + dur);
+    gn.gain.setTargetAtTime(0, t + dur, tau);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(gn).connect(master.pre);
+    src.start(t);
+    src.stop(t + dur + tau * 6 + 0.05);
+    return true;
+  }
+
   const isPlaying = () => performance.now() < playingUntil;
   /** Seconds since the current playback began, or null when nothing is playing. */
   const elapsed = () => (isPlaying() ? Math.max(0, (performance.now() - startedAt) / 1000) : null);
@@ -353,8 +371,9 @@
   }
 
   AT.synth = {
-    _ctx: () => ctx, ev, play, stop, totalSeconds, isPlaying, elapsed, spectrum, fit, choose, midiOf,
+    _ctx: () => ctx, ev, play, tap, stop, totalSeconds, isPlaying, elapsed, spectrum, fit, choose, midiOf,
     INSTRUMENTS, ORDER, MELODIC, POLY, AGILE, DRUMS, renderPiano, renderDrum,
+    setVolume(v) { g.AT.volume = v; if (master) master.gain.value = 1.5 * v / 0.8; },
     supported: () => !!(g.AudioContext || g.webkitAudioContext),
   };
 })(typeof window !== "undefined" ? window : globalThis);

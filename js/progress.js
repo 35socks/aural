@@ -2,9 +2,10 @@
 (function (g) {
   const AT = g.AT;
   const KEY = "aural-trainer-progress-v2";
-    const DEFAULT_SETTINGS = { inst: "mixed", live: false, groups: [] };
+    const DEFAULT_SETTINGS = { inst: "mixed", live: false, groups: [], volume: 0.8, theme: "auto", goal: 20, tempo: 1, motion: true };
+  const blankExtra = () => ({ days: {}, xp: 0, ach: {}, mistakes: [], best: 0 });
 
-  let data = { stats: {}, mocks: [], settings: { ...DEFAULT_SETTINGS } };
+  let data = { stats: {}, mocks: [], settings: { ...DEFAULT_SETTINGS }, extra: blankExtra() };
   let storageOk = true;
 
   function load() {
@@ -17,6 +18,7 @@
             stats: parsed.stats || {},
             mocks: Array.isArray(parsed.mocks) ? parsed.mocks : [],
             settings: { ...DEFAULT_SETTINGS, ...(parsed.settings || {}) },
+            extra: { ...blankExtra(), ...(parsed.extra || {}) },
           };
         }
       }
@@ -51,8 +53,23 @@
       save();
     },
     mocks: () => data.mocks.map((m) => ({ ...m, percent: pct(m.score, m.total) })),
-    reset() { data = { stats: {}, mocks: [], settings: data.settings }; save(); }, // keeps your settings
+    reset() { data = { stats: {}, mocks: [], settings: data.settings, extra: blankExtra() }; save(); }, // keeps your settings
     pct,
+    extra: () => data.extra,
+    /** Change the extra data (days, xp, achievements, mistakes) inside fn, then save. */
+    updateExtra(fn) { fn(data.extra); save(); },
+    stats: () => data.stats,
+    exportJSON: () => JSON.stringify({ app: "aural", version: 2, data }, null, 2),
+    importJSON(text) {
+      const parsed = JSON.parse(text);
+      const d = parsed && parsed.data ? parsed.data : parsed;
+      if (!d || typeof d !== "object" || !d.stats) throw new Error("That file is not an Aural backup.");
+      data = {
+        stats: d.stats || {}, mocks: Array.isArray(d.mocks) ? d.mocks : [],
+        settings: { ...DEFAULT_SETTINGS, ...(d.settings || {}) }, extra: { ...blankExtra(), ...(d.extra || {}) },
+      };
+      save();
+    },
   };
   load();
 })(typeof window !== "undefined" ? window : globalThis);

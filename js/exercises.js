@@ -30,8 +30,18 @@
       blurb: "4/4, 3/4, 6/8 and 9/8.", gen: () => AT.rhythm.timeSignatures() },
   ];
 
+  // Extension topics (outcome 4): extra ear training that is not in the unit and never in the mock paper.
+  const EXTENSION = { n: 4, name: "Extension: extra ear training", marks: 0, pass: 0, ext: true };
+  CATEGORIES.push(
+    { key: "descIntervals", outcome: 4, pc: "X1", name: "Descending intervals", mock: 0, blurb: "The same intervals, played going down.", gen: () => AT.extra.descIntervals() },
+    { key: "cadences", outcome: 4, pc: "X2", name: "Cadences", mock: 0, blurb: "Perfect, plagal, imperfect or interrupted: how a phrase ends.", gen: () => AT.extra.cadences() },
+    { key: "contour", outcome: 4, pc: "X3", name: "Melodic shape", mock: 0, blurb: "Rising, falling, arch or valley.", gen: () => AT.extra.contour() },
+    { key: "beatFeel", outcome: 4, pc: "X4", name: "Simple or compound beat", mock: 0, blurb: "Does each beat split into two or three?", gen: () => AT.extra.beatFeel() },
+    { key: "missingNote", outcome: 4, pc: "X5", name: "Missing scale note", mock: 0, blurb: "A major scale with one note left out.", gen: () => AT.extra.missingNote() },
+  );
+
   const byKey = (k) => CATEGORIES.find((c) => c.key === k);
-  const outcomeOf = (n) => OUTCOMES.find((o) => o.n === n);
+  const outcomeOf = (n) => OUTCOMES.find((o) => o.n === n) || EXTENSION;
 
   /** Gives every question an instrument and moves it into that instrument's register. */
   function prepare(q) {
@@ -63,5 +73,5 @@
 
   const minutesFor = (count) => Math.max(10, Math.round((EXAM_MINUTES * count) / 50));
 
-  AT.exercises = { OUTCOMES, CATEGORIES, EXAM_MINUTES, byKey, outcomeOf, generate, mockTest, minutesFor };
+  AT.exercises = { EXTENSION, OUTCOMES, CATEGORIES, EXAM_MINUTES, byKey, outcomeOf, generate, mockTest, minutesFor };
 })(typeof window !== "undefined" ? window : globalThis);

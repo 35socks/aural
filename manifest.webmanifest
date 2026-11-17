@@ -1,0 +1,11 @@
+{
+  "name": "Aural Skills Trainer",
+  "short_name": "Aural",
+  "description": "Ear training and mock exams for SCQF level 5 Music: Aural Skills.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#141516",
+  "theme_color": "#141516",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

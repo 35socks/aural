@@ -16,9 +16,10 @@
 
   const PAGE = document.body.dataset.page || "home";
   const root = document.getElementById("app");
-  const fromHash = ["crib", "progress", "lessons"].includes(g.location.hash.slice(1)) ? g.location.hash.slice(1) : "home";
+  const EXTRA = () => AT.extraScreens || {};
+  const fromHash = ["crib", "progress", "lessons", ...Object.keys(EXTRA())].includes(g.location.hash.slice(1)) && g.location.hash.slice(1) !== "drill" ? g.location.hash.slice(1) : "home";
   const SUBPAGES = ["groups", "learning"];
-  const state = { lesson: null, run: null, screen: SUBPAGES.includes(PAGE) ? PAGE : fromHash, session: null, summary: null, confirmReset: false, audioError: false };
+  const state = { drill: null, lesson: null, run: null, screen: SUBPAGES.includes(PAGE) ? PAGE : fromHash, session: null, summary: null, confirmReset: false, audioError: false };
   let playTotal = 0;
 
   // ---------- tiny DOM helper (text is always set via textContent) ----------
@@ -125,6 +126,7 @@
     s.history.push(ok);
     if (ok) { s.correct++; s.streak++; s.best = Math.max(s.best, s.streak); } else s.streak = 0;
     P.record(q.category, ok);
+    AT.plus.onAnswer(q, ok, s);
   }
 
   function select(i) {
@@ -148,6 +150,7 @@
     s.answered++;
     if (ok) s.correct++;
     P.record(q.category, ok);
+    AT.plus.onAnswer(q, ok, s);
     moveOn();
   }
 
@@ -160,7 +163,10 @@
   function nextPractice() {
     const s = state.session;
     if (!s || s.mode !== "practice" || !s.revealed) return;
-    s.questions = [generate(s.cat)];
+    if (s.limit && s.answered >= s.limit) return AT.plus.finishDrill(s);
+    const nq = s.next ? s.next() : generate(s.cat);
+    if (!nq) return AT.plus.finishDrill(s);
+    s.questions = [nq];
     s.index = 0;
     startQuestion();
   }
@@ -203,7 +209,14 @@
   // ---------- stage: live level meter while listening, note roll once answered ----------
   const css = getComputedStyle(document.documentElement);
   const col = (name) => css.getPropertyValue(name).trim();
-  const COLOURS = { fg: col("--text"), accent: col("--accent"), unlit: col("--raise"), line: col("--line-hi"), dim: col("--dim") };
+  let COLOURS;
+  function refreshColours() {
+    const cs = getComputedStyle(document.documentElement);
+    const c = (n) => cs.getPropertyValue(n).trim();
+    COLOURS = { fg: c("--text"), accent: c("--accent"), unlit: c("--raise"), line: c("--line-hi"), dim: c("--dim") };
+    if (state.screen === "question") drawStage();
+  }
+  refreshColours();
   const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 
   /** Five hairlines, the stave, behind everything on the stage. */
@@ -360,6 +373,7 @@
       h("div", { class: "lead" },
         h("h2", null, "Aural Skills, SCQF level 5"),
         h("p", null, "Identify intervals, scales, chords and rhythms by ear. Practise each outcome, then sit a timed paper marked the way the unit is marked.")),
+      AT.plus.dashboard(),
       h("div", { class: "split" },
         h("section", { class: "panel exam" },
           h("p", { class: "meta" }, "Mock exam"),
@@ -380,7 +394,10 @@
           h("p", { class: "note" }, "100% attendance is required. Two attempts are allowed at each outcome."))),
       h("div", { class: "settings" },
         h("h2", { class: "section-title" }, "Practise by outcome")),
-      OUTCOMES.map((o) => outcomeSection(o, last)));
+      OUTCOMES.map((o) => outcomeSection(o, last)),
+      AT.plus.extensionSection(),
+      h("div", { class: "settings" }, h("h2", { class: "section-title" }, "Your own session")),
+      AT.plus.builder());
   }
 
   function strip(s) {
@@ -428,7 +445,7 @@
     return h("div", { class: "panel quiz" },
       state.audioError && h("div", { class: "alert", role: "alert" }, "Sound could not start. Check your volume and that this browser allows audio, then press Play again."),
       h("div", { class: "qtop" },
-        h("p", { class: "meta" }, `Outcome ${o.n} · ${cat.name}`, mock ? ` · ${s.live ? "answers shown" : "exam conditions"}` : " · practice"),
+        h("p", { class: "meta" }, `${o.ext ? "Extension" : "Outcome " + o.n} · ${cat.name}`, mock ? ` · ${s.live ? "answers shown" : "exam conditions"}` : ` · ${s.label || "practice"}`),
         h("p", { class: "meta" }, mock ? `Question ${s.index + 1} of ${s.questions.length}` : `Instrument: ${S.INSTRUMENTS[q.inst].name}`)),
       strip(s),
       hud(s),
@@ -458,7 +475,7 @@
             h("p", { class: "why" }, q.explanation),
             h("div", { class: "actions" },
               h("button", { class: "btn primary", id: "next", onclick: advance },
-                mock && last ? "See results" : "Next question"))),
+                mock && last ? "See results" : s.limit && s.answered >= s.limit ? "Finish" : "Next question"))),
       h("p", { class: "keys" }, h("kbd", null, "R"), " replay", h("kbd", null, "1-9"), " choose", h("kbd", null, "Enter"), mock && !s.live ? " lock in" : " continue"));
   }
 
@@ -778,6 +795,7 @@
           return h("tr", null, h("td", null, c.name), h("td", { class: "bar-cell" }, meter(st.percent || 0, `${c.name} accuracy`)),
             h("td", { class: "num" }, st.attempts ? `${st.correct}/${st.attempts}` : "No data"));
         }))))),
+      AT.plus.insights(),
       h("h3", { class: "section-title" }, "Mock exam history"),
       mocks.length === 0 && h("p", { class: "note" }, "No mock exams completed yet"),
       h("div", { class: "hist" }, mocks.slice(-10).reverse().map((m, i) => {
@@ -797,7 +815,7 @@
 
   // ---------- render + input ----------
   function updateChrome() {
-    const navOn = state.screen === "progress" ? "progress" : state.screen === "crib" ? "crib" : state.screen === "lessons" ? "lessons" : SUBPAGES.includes(state.screen) ? state.screen : "home";
+    const navOn = state.screen === "drill" ? "home" : NAV.some((n) => n[0] === state.screen) ? state.screen : "home";
     document.querySelectorAll("[data-nav]").forEach((b) => b.classList.toggle("on", b.dataset.nav === navOn));
     const info = [P.storageOk() ? "Saved in this browser" : "Storage blocked", "Sounds: piano and drums"].join(" · ");
     const node = document.getElementById("foot-info");
@@ -805,7 +823,7 @@
   }
 
   function render() {
-    const screens = { home: homeScreen, question: questionScreen, results: resultsScreen, progress: progressScreen, crib: cribScreen, groups: groupsScreen, learning: learningScreen, lessons: lessonsScreen };
+    const screens = { ...EXTRA(), home: homeScreen, question: questionScreen, results: resultsScreen, progress: progressScreen, crib: cribScreen, groups: groupsScreen, learning: learningScreen, lessons: lessonsScreen };
     const active = document.activeElement;
     const inRoot = active && root.contains(active);
     const activeId = inRoot && active.id ? active.id : null;
@@ -827,7 +845,9 @@
     drawStage();
   }
 
-  document.querySelectorAll("[data-nav]").forEach((b) => b.addEventListener("click", () => go(b.dataset.nav)));
+  const NAV = [["home", "Practice"], ["review", "Review"], ["lessons", "Lessons"], ["learning", "Learning"], ["groups", "Groups"], ["tools", "Tools"], ["crib", "Crib sheet"], ["progress", "Progress"], ["settings", "Settings"]];
+  const navEl = document.querySelector("header nav");
+  navEl.replaceChildren(...NAV.map(([k, t]) => h("button", { class: "navbtn", "data-nav": k, onclick: () => go(k) }, t)));
 
   document.addEventListener("keydown", (e) => {
     if (state.screen !== "question" || !state.session || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -843,6 +863,7 @@
 
   g.addEventListener("resize", drawStage);
 
+  AT.ui = { h, state, render, go, startSession, startMock, meter, chip, fmtDate, refreshColours };
   AT.app = { state, render };
   render();
   g.requestAnimationFrame(tick);
