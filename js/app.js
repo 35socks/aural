@@ -1,15 +1,22 @@
 /* UI: renders screens and handles input. State changes go through the small functions below. */
 (function (g) {
   const AT = g.AT;
-  const { GROUPS, CATEGORIES, byKey, groupName, generate, mockTest, mockSize } = AT.exercises;
+  const { OUTCOMES, CATEGORIES, EXAM_MINUTES, byKey, outcomeOf, generate, mockTest, minutesFor } = AT.exercises;
   const P = AT.progress;
   const S = AT.synth;
   const MAX_PLAYS = 3;
-  const MOCK_PER_CATEGORY = 2;
+  const PASS_PCT = 70; // 14/20 and 7/10 are both 70%
+
+  const DATES = [
+    ["8 Dec", "Mock exam, under exam conditions"],
+    ["15 Dec", "Exam, closed book"],
+    ["22 Dec", "Resit and remediation begins"],
+    ["12 Jan", "Last day to resit, 9-11 am, L309b"],
+  ];
 
   const root = document.getElementById("app");
-  const state = { screen: "home", session: null, summary: null, confirmReset: false, audioError: false, query: "" };
-  let playTotal = 0; // seconds of the current playback, for the status readout
+  const state = { screen: "home", session: null, summary: null, confirmReset: false, audioError: false };
+  let playTotal = 0;
 
   // ---------- tiny DOM helper (text is always set via textContent) ----------
   function h(tag, attrs, ...kids) {
@@ -26,17 +33,18 @@
     }
     return el;
   }
-  const tag = (text, colour) => h("span", { class: "tag" + (colour ? " " + colour : "") }, text);
+  const chip = (text, tone) => h("span", { class: "chip" + (tone ? " " + tone : "") }, text);
   const fmtDate = (ts) => new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  const pad2 = (n) => String(n).padStart(2, "0");
-  const partLetter = (i) => "abcdefghij"[i];
+  const fmtClock = (ms) => {
+    const s = Math.max(0, Math.ceil(ms / 1000));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  };
 
-  /** Chunky 20-block bar. */
-  function seg(percent) {
-    const on = Math.round(percent / 5);
-    const cls = percent >= P.PASS_MARK ? "good" : "warn";
-    return h("div", { class: "seg " + cls, role: "progressbar", "aria-valuenow": percent, "aria-valuemin": 0, "aria-valuemax": 100 },
-      Array.from({ length: 20 }, (_, i) => h("i", { class: i < on ? "on" : "" })));
+  /** Thin bar with a tick at the pass mark. */
+  function meter(percent, label) {
+    return h("div", { class: "bar-meter" + (percent >= PASS_PCT ? " met" : ""), role: "progressbar", "aria-label": label,
+        "aria-valuenow": percent, "aria-valuemin": 0, "aria-valuemax": 100 },
+      h("i", { style: `width:${percent}%` }), h("b", { style: `left:${PASS_PCT}%` }));
   }
 
   // ---------- audio ----------
@@ -52,33 +60,31 @@
     S.stop();
     state.screen = screen;
     state.confirmReset = false;
-    if (screen === "home") state.session = null;
+    if (screen !== "question") state.session = null;
     render();
+    g.scrollTo(0, 0);
   }
 
-  /** Live feedback is always on in practice; in an entry check it is the learner's choice. */
-  function startSession(mode, cat, questions, live) {
+  function startSession(mode, cat, questions, live, outcomes) {
     state.session = {
-      mode, cat, live: mode === "practice" ? true : !!live, questions, index: 0, selected: null, revealed: false,
+      mode, cat, live: mode === "practice" ? true : !!live, questions, outcomes: outcomes || null,
+      index: 0, selected: null, revealed: false,
       answers: [], log: [], history: [], playsUsed: 0, correct: 0, answered: 0, streak: 0, best: 0,
+      deadline: mode === "mock" ? Date.now() + minutesFor(questions.length) * 60000 : null,
     };
     state.screen = "question";
     startQuestion();
+    g.scrollTo(0, 0);
   }
 
-  const continuing = (s) => {
-    const q = s.questions[s.index], prev = s.questions[s.index - 1];
-    return !!(q.group && prev && prev.group === q.group);
-  };
+  const startMock = (outcomes) => startSession("mock", null, mockTest(outcomes), P.setting("live"), outcomes);
 
   function startQuestion() {
     const s = state.session;
     s.selected = null;
     s.revealed = false;
-    if (!continuing(s)) { // later parts of an excerpt share the same hearing and play count
-      s.playsUsed = 1;
-      playEvents(s.questions[s.index].events); // counts as the first play
-    }
+    s.playsUsed = 1;
+    playEvents(s.questions[s.index].events);
     render();
   }
 
@@ -89,11 +95,6 @@
     s.playsUsed++;
     playEvents(s.questions[s.index].events);
     render();
-  }
-
-  function record(q, ok) {
-    P.record(q.category, ok);
-    if (q.topic && q.topic !== q.category) P.record(q.topic, ok);
   }
 
   /** Marks the answer straight away: score, streak and saved stats update in real time. */
@@ -108,7 +109,7 @@
     s.log[s.index] = ok;
     s.history.push(ok);
     if (ok) { s.correct++; s.streak++; s.best = Math.max(s.best, s.streak); } else s.streak = 0;
-    record(q, ok);
+    P.record(q.category, ok);
   }
 
   function select(i) {
@@ -131,7 +132,7 @@
     s.log[s.index] = ok;
     s.answered++;
     if (ok) s.correct++;
-    record(q, ok);
+    P.record(q.category, ok);
     moveOn();
   }
 
@@ -144,12 +145,11 @@
   function nextPractice() {
     const s = state.session;
     if (!s || s.mode !== "practice" || !s.revealed) return;
-    if (s.index + 1 < s.questions.length) s.index++; // next part of the same excerpt
-    else { s.questions = generate(s.cat); s.index = 0; }
+    s.questions = [generate(s.cat)];
+    s.index = 0;
     startQuestion();
   }
 
-  /** One key and button for "carry on", whatever the mode. */
   function advance() {
     const s = state.session;
     if (!s) return;
@@ -158,47 +158,60 @@
     else submitMock();
   }
 
-  function finishMock() {
+  /** Marks each outcome on its own against its pass mark. Unanswered questions score nothing. */
+  function finishMock(timedOut) {
     S.stop();
     const s = state.session;
-    const per = CATEGORIES.map((c) => ({ cat: c, correct: 0, total: 0 }));
-    const missed = [];
+    const sections = OUTCOMES.map((o) => ({ o, score: 0, total: 0, missed: [] }))
+      .filter((sec) => s.questions.some((q) => q.outcome === sec.o.n));
     s.questions.forEach((q, i) => {
-      const ok = s.answers[i] === q.correct;
-      const row = per.find((r) => r.cat.key === q.category);
-      row.total++;
-      if (ok) row.correct++; else missed.push({ q, chosen: s.answers[i] });
+      const sec = sections.find((x) => x.o.n === q.outcome);
+      sec.total++;
+      if (s.answers[i] === q.correct) sec.score++;
+      else sec.missed.push({ q, chosen: s.answers[i] });
     });
-    P.recordMock(s.correct, s.questions.length);
-    state.summary = { score: s.correct, total: s.questions.length, per: per.filter((r) => r.total > 0), missed };
+    sections.forEach((sec) => { sec.pass = sec.score >= sec.o.pass; });
+    const score = sections.reduce((n, x) => n + x.score, 0);
+    P.recordMock(score, s.questions.length, sections.map((x) => [x.o.n, x.score, x.total]));
+    state.summary = { sections, total: s.questions.length, score, timedOut: !!timedOut, full: sections.length === OUTCOMES.length };
     state.session = null;
     state.screen = "results";
     render();
+    g.scrollTo(0, 0);
   }
 
   // ---------- stage: live level meter while listening, note roll once answered ----------
   const css = getComputedStyle(document.documentElement);
   const col = (name) => css.getPropertyValue(name).trim();
-  const COLOURS = { fg: col("--fg"), amber: col("--amber"), unlit: "#16171a", line: col("--line"), dim: col("--dim") };
+  const COLOURS = { fg: col("--text"), accent: col("--accent"), unlit: col("--raise"), line: col("--line-hi"), dim: col("--dim") };
   const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+
+  /** Five hairlines, the stave, behind everything on the stage. */
+  function drawStave(ctx, w, hgt) {
+    const gap = 12, top = Math.round(hgt / 2 - gap * 2);
+    ctx.fillStyle = COLOURS.line;
+    ctx.globalAlpha = 0.5;
+    for (let i = 0; i < 5; i++) ctx.fillRect(0, top + i * gap, w, 1);
+    ctx.globalAlpha = 1;
+  }
 
   function drawMeter(ctx, w, hgt) {
     const bands = w < 520 ? 20 : 32;
-    const gap = 4, segH = 8, segGap = 3, padX = 12;
+    const gap = 4, segH = 4, segGap = 4, padX = 16;
     const bw = (w - 2 * padX - (bands - 1) * gap) / bands;
     const rows = Math.max(3, Math.floor((hgt - 40) / (segH + segGap)));
     const level = S.spectrum(bands);
     for (let b = 0; b < bands; b++) {
       const lit = Math.round(level[b] * rows);
       for (let r = 0; r < rows; r++) {
-        ctx.fillStyle = r >= lit ? COLOURS.unlit : r >= rows * 0.75 ? COLOURS.amber : COLOURS.fg;
-        ctx.fillRect(padX + b * (bw + gap), hgt - 12 - (r + 1) * (segH + segGap) + segGap, bw, segH);
+        ctx.fillStyle = r >= lit ? COLOURS.unlit : r >= rows * 0.75 ? COLOURS.accent : COLOURS.fg;
+        ctx.fillRect(padX + b * (bw + gap), hgt - 16 - (r + 1) * (segH + segGap) + segGap, bw, segH);
       }
     }
   }
 
   function drawRoll(ctx, w, hgt, q) {
-    const padX = 12, top = 30, bottom = 30;
+    const padX = 16, top = 32, bottom = 32;
     const notes = [];
     let lo = Infinity, hi = -Infinity;
     for (const e of q.events) {
@@ -214,33 +227,34 @@
     const el = S.elapsed();
     const rows = notes.length ? hi - lo + 1 : 1;
     const areaH = hgt - top - bottom;
-    const rowH = clamp(areaH / Math.max(rows, 6), 3, 12);
+    const rowH = clamp(areaH / Math.max(rows, 6), 3, 10);
     const y0 = top + (areaH - rows * rowH) / 2;
 
     for (const { e, m } of notes) {
-      const vol = clamp(e.vol, 0, 1);
-      let alpha = 0.3 + 0.7 * vol; // louder notes are brighter, so a crescendo is visible
+      let alpha = 0.55 + 0.45 * clamp(e.vol, 0, 1);
       let fill = COLOURS.fg;
       if (el != null) {
-        if (el >= e.start && el <= e.start + e.dur + 0.05) { fill = COLOURS.amber; alpha = 1; }
+        if (el >= e.start && el <= e.start + e.dur + 0.05) { fill = COLOURS.accent; alpha = 1; }
         else if (el < e.start) alpha *= 0.45;
       }
       ctx.globalAlpha = alpha;
       ctx.fillStyle = fill;
-      ctx.fillRect(xOf(e.start), y0 + (hi - m) * rowH, Math.max(3, xOf(e.start + e.dur) - xOf(e.start) - 1), Math.max(2, rowH - 1));
+      const x = xOf(e.start), wd = Math.max(4, xOf(e.start + e.dur) - x - 2);
+      ctx.beginPath();
+      ctx.roundRect(x, y0 + (hi - m) * rowH, wd, Math.max(3, rowH - 1), 2);
+      ctx.fill();
     }
     ctx.globalAlpha = 1;
-    // pulse / click lane
     ctx.fillStyle = COLOURS.dim;
     ctx.fillRect(padX, hgt - 20, w - 2 * padX, 1);
     for (const e of q.events) {
       if (e.voice.click === undefined) continue;
-      ctx.fillStyle = el != null && el >= e.start && el <= e.start + 0.12 ? COLOURS.amber : COLOURS.fg;
-      ctx.fillRect(xOf(e.start), hgt - (e.voice.click ? 18 : 12), 2, e.voice.click ? 14 : 8);
+      ctx.fillStyle = el != null && el >= e.start && el <= e.start + 0.12 ? COLOURS.accent : COLOURS.fg;
+      ctx.fillRect(xOf(e.start), hgt - (e.voice.click ? 20 : 16), 2, e.voice.click ? 14 : 10);
     }
     if (el != null) {
-      ctx.fillStyle = COLOURS.fg;
-      ctx.fillRect(clamp(xOf(el), padX, w - padX) - 1, top - 6, 2, hgt - top - 4);
+      ctx.fillStyle = COLOURS.accent;
+      ctx.fillRect(clamp(xOf(el), padX, w - padX) - 1, top - 8, 2, hgt - top - 4);
     }
   }
 
@@ -259,27 +273,29 @@
     ctx.clearRect(0, 0, w, hgt);
     const s = state.session;
     if (!s || state.screen !== "question") return;
+    drawStave(ctx, w, hgt);
     if (s.revealed) drawRoll(ctx, w, hgt, s.questions[s.index]);
     else drawMeter(ctx, w, hgt);
   }
 
-  // ---------- live status (footer bar and stage corner), driven by the animation loop ----------
+  // ---------- live status (stage corner) and exam clock, driven by the animation loop ----------
   function updateStatus() {
-    const el = S.elapsed();
-    const playing = el != null;
-    const text = playing ? `● Playing ${Math.min(el, playTotal).toFixed(1)}s / ${playTotal.toFixed(1)}s` : "○ Idle";
-    const node = document.getElementById("status");
-    if (node) {
-      if (node.textContent !== text) node.textContent = text;
-      node.classList.toggle("live", playing);
-    }
+    const playing = S.elapsed() != null;
     const st = document.getElementById("stage-state");
     if (st) {
       const s = state.session;
-      const idle = s && s.revealed ? "○ Stopped" : "○ Silent";
-      const label = playing ? "● Playing" : idle;
+      const label = playing ? "Playing" : s && s.revealed ? "Stopped" : "Silent";
       if (st.textContent !== label) st.textContent = label;
       st.classList.toggle("live", playing);
+    }
+    const s = state.session;
+    const clock = document.getElementById("clock");
+    if (clock && s && s.deadline) {
+      const left = s.deadline - Date.now();
+      const text = fmtClock(left);
+      if (clock.textContent !== text) clock.textContent = text;
+      clock.classList.toggle("low", left < 5 * 60000);
+      if (left <= 0) finishMock(true);
     }
   }
 
@@ -293,86 +309,68 @@
   }
 
   // ---------- screens ----------
-  function topicCard(c, index) {
+  function topicRow(c) {
     const st = P.stat(c.key);
-    const badge = st.attempts === 0 ? tag("Not tried", "blue") : st.percent < P.PASS_MARK ? tag("Needs work", "amber") : tag("On target", "green");
-    return h("article", { class: "cell" },
-      h("div", { class: "cell-top" }, h("span", null, `Topic ${pad2(index + 1)}`), h("span", null, groupName(c.group))),
-      h("div", { class: "cell-body" },
-        h("div", { class: "cell-head" },
-          h("div", { class: "icon", "aria-hidden": "true" }, c.code),
-          h("div", null, h("h3", null, c.name), h("div", { class: "tags", style: "margin-top:8px" }, badge))),
-        h("div", { class: "info" },
-          h("p", { class: "line" }, st.attempts ? `Accuracy: ${st.percent}% (${st.correct} of ${st.attempts})` : "Accuracy: no answers yet"),
-          h("p", { class: "line muted", style: "margin-top:4px" }, c.blurb),
-          h("p", { class: "line dim", style: "margin-top:4px" }, st.last ? `Last practised: ${fmtDate(st.last)}` : "Last practised: never")),
-        h("button", { class: "btn primary block", onclick: () => startSession("practice", c.key, generate(c.key)) }, "Practise")));
+    return h("li", { class: "topic" },
+      h("span", { class: "pc" }, c.pc),
+      h("div", { class: "topic-text" }, h("h4", null, c.name), h("p", null, c.blurb)),
+      h("div", { class: "topic-score" },
+        meter(st.percent || 0, `${c.name} accuracy`),
+        h("span", null, st.attempts ? `${st.percent}% of ${st.attempts}` : "Not tried")),
+      h("button", { class: "btn", "aria-label": `Practise ${c.name}`, onclick: () => startSession("practice", c.key, [generate(c.key)]) }, "Practise"));
   }
 
-  function topicsView(query) {
-    const needle = query.trim().toLowerCase();
-    const list = P.setting("view") === "list" ? " list" : "";
-    const out = [];
-    for (const grp of GROUPS) {
-      const cats = CATEGORIES.map((c, i) => [c, i])
-        .filter(([c]) => c.group === grp.key && (!needle || `${c.name} ${c.blurb} ${grp.name}`.toLowerCase().includes(needle)));
-      if (!cats.length) continue;
-      out.push(h("div", { class: "sect" }, grp.name), h("div", { class: "cards" + list }, cats.map(([c, i]) => topicCard(c, i))));
-    }
-    if (!out.length) out.push(h("div", { class: "empty" }, "No topics match your search"));
-    return out;
-  }
-
-  function viewToggle() {
-    const view = P.setting("view");
-    const set = (v) => () => { P.setSetting("view", v); render(); };
-    return h("div", { class: "viewtoggle", role: "group", "aria-label": "Topic layout" },
-      h("button", { class: view === "grid" ? "on" : "", id: "v-grid", "aria-label": "Grid view", "aria-pressed": String(view === "grid"), onclick: set("grid") },
-        h("span", { class: "ico-grid" }, h("i"), h("i"), h("i"), h("i"))),
-      h("button", { class: view === "list" ? "on" : "", id: "v-list", "aria-label": "List view", "aria-pressed": String(view === "list"), onclick: set("list") },
-        h("span", { class: "ico-list" }, h("i"), h("i"), h("i"))));
+  function outcomeSection(o, last) {
+    const result = last && last.outcomes && last.outcomes.find((x) => x[0] === o.n);
+    return h("section", { class: "outcome" },
+      h("header", null,
+        h("div", null, h("p", { class: "meta" }, `Outcome ${o.n}`), h("h3", null, o.name)),
+        h("p", { class: "meta cut" }, `Pass mark ${o.pass} of ${o.marks}`,
+          result && h("span", { class: result[1] >= o.pass ? "ok" : "no" }, ` · last paper ${result[1]}/${result[2]}`))),
+      h("ul", { class: "topics" }, CATEGORIES.filter((c) => c.outcome === o.n).map(topicRow)));
   }
 
   function homeScreen() {
-    const last = P.mocks().slice(-1)[0];
-    const size = mockSize(MOCK_PER_CATEGORY);
+    const mocks = P.mocks();
+    const last = mocks.length ? mocks[mocks.length - 1] : null;
     const live = P.setting("live");
     const pref = P.setting("inst");
-    const start = () => startSession("mock", null, mockTest(MOCK_PER_CATEGORY), P.setting("live"));
-    const instOptions = [["mixed", "Mixed (random)"], ...S.ORDER.map((k) => [k, S.INSTRUMENTS[k].name])];
+    const instOptions = [["mixed", "Mixed"], ...S.ORDER.map((k) => [k, S.INSTRUMENTS[k].name])];
+    const total = CATEGORIES.reduce((n, c) => n + c.mock, 0);
 
-    return h("div", null,
-      h("div", { class: "toolbar" },
-        h("span", { class: "label grow" }, `${CATEGORIES.length} topics`),
-        h("button", { class: "btn primary", onclick: start }, "Start entry check"),
-        h("label", { class: "label lbl", for: "inst" }, "Instrument",
+    return h("div", { class: "home" },
+      h("div", { class: "lead" },
+        h("h2", null, "Aural Skills, SCQF level 5"),
+        h("p", null, "Identify intervals, scales, chords and rhythms by ear. Practise each outcome, then sit a timed paper marked the way the unit is marked.")),
+      h("div", { class: "split" },
+        h("section", { class: "panel exam" },
+          h("p", { class: "meta" }, "Mock exam"),
+          h("h3", null, `${total} questions, ${EXAM_MINUTES} minutes, closed book`),
+          h("p", null, `Each outcome is marked on its own. Fail one and you resit only that section. Each sound can be played ${MAX_PLAYS} times.`),
+          h("dl", { class: "marks" }, OUTCOMES.map((o) =>
+            h("div", null, h("dt", null, `Outcome ${o.n}`), h("dd", null, `${o.pass}`, h("span", null, `/${o.marks}`))))),
+          h("div", { class: "row" },
+            h("button", { class: "btn primary", onclick: () => startMock() }, "Start mock exam"),
+            h("button", { class: "switch", id: "live", role: "switch", "aria-checked": String(live), onclick: () => { P.setSetting("live", !live); render(); } },
+              h("span", { class: "box" }), "Show answers as I go")),
+          h("p", { class: "note" }, last
+            ? `Last paper ${last.score}/${last.total} on ${fmtDate(last.when)}`
+            : "No mock exam taken yet")),
+        h("aside", { class: "panel dates" },
+          h("p", { class: "meta" }, "Key dates"),
+          h("ol", null, DATES.map(([d, t]) => h("li", null, h("time", null, d), h("span", null, t)))),
+          h("p", { class: "note" }, "100% attendance is required. Two attempts are allowed at each outcome."))),
+      h("div", { class: "settings" },
+        h("h2", { class: "section-title" }, "Practise by outcome"),
+        h("label", { class: "meta lbl", for: "inst" }, "Instrument",
           h("select", { class: "field", id: "inst", onchange: (e) => { P.setSetting("inst", e.target.value); render(); } },
-            instOptions.map(([k, name]) => h("option", { value: k, selected: k === pref }, name)))),
-        h("input", {
-          class: "field", id: "q", type: "search", placeholder: "Search topics", value: state.query, "aria-label": "Search topics",
-          oninput: (e) => { state.query = e.target.value; document.getElementById("topics").replaceChildren(...topicsView(state.query)); },
-        }),
-        viewToggle()),
-      h("section", { class: "panel" },
-        h("div", { class: "tags" }, tag("Paper", "blue"), tag(`${size} marks`, "amber")),
-        h("h2", null, "Entry check"),
-        h("div", { class: "lines" },
-          h("p", null, `${size} questions: ${MOCK_PER_CATEGORY} from every topic, plus a ${AT.excerpt.PARTS}-part mixed excerpt. Headphones recommended.`),
-          h("p", null, `Each question can be heard up to ${MAX_PLAYS} times. Aim for ${P.PASS_MARK}% or more.`),
-          h("p", { class: "dim" }, last ? `Last attempt: ${last.score}/${last.total} (${last.percent}%) on ${fmtDate(last.when)}` : "Last attempt: none yet")),
-        h("div", { class: "row", style: "margin-top:18px" },
-          h("button", { class: "btn primary", onclick: start }, "Start entry check"),
-          h("button", { class: "switch", id: "live", role: "switch", "aria-checked": String(live), onclick: () => { P.setSetting("live", !live); render(); } },
-            h("span", { class: "box" }), `Live feedback ${live ? "on" : "off"}`)),
-        h("p", { class: "muted small-text", style: "margin-top:12px" }, live
-          ? "Right or wrong is shown the moment you answer, with a running score and streak. Switch it off for exam conditions."
-          : "Exam conditions: you lock in each answer and only see your marks and the answers at the end.")),
-      h("div", { id: "topics" }, topicsView(state.query)));
+            instOptions.map(([k, name]) => h("option", { value: k, selected: k === pref }, name))))),
+      OUTCOMES.map((o) => outcomeSection(o, last)));
   }
 
-  function strip(s, mock) {
+  function strip(s) {
     const blocks = [];
-    if (mock) {
+    if (s.mode === "mock") {
       for (let i = 0; i < s.questions.length; i++) {
         let cls = "blk";
         if (s.log[i] !== undefined) cls += s.live ? (s.log[i] ? " ok" : " no") : " done";
@@ -380,7 +378,6 @@
         blocks.push(h("div", { class: cls }));
       }
     } else {
-      // A fixed 20 slots: the last 19 results, the current question, then empty slots.
       const recent = s.history.slice(-19);
       recent.forEach((ok) => blocks.push(h("div", { class: "blk " + (ok ? "ok" : "no") })));
       blocks.push(h("div", { class: "blk cur" }));
@@ -389,49 +386,46 @@
     return h("div", { class: "strip", "aria-hidden": "true" }, blocks);
   }
 
-  function hud(s, mock) {
-    const pct = s.answered ? `${P.pct(s.correct, s.answered)}%` : "--";
+  function hud(s) {
+    const mock = s.mode === "mock";
+    const pct = s.answered ? `${P.pct(s.correct, s.answered)}%` : "-";
     const plays = `${Math.min(s.playsUsed, MAX_PLAYS)}/${MAX_PLAYS}`;
+    const clock = h("div", null, h("div", { class: "k" }, "Time left"), h("div", { class: "v", id: "clock" }, fmtClock(s.deadline - Date.now())));
     let cells;
     if (!mock) cells = [["Score", `${s.correct}/${s.answered}`], ["Accuracy", pct], ["Streak", s.streak], ["Best streak", s.best]];
-    else if (s.live) cells = [["Score", `${s.correct}/${s.answered}`], ["Accuracy", pct], ["Streak", s.streak], ["Plays used", plays]];
-    else cells = [["Answered", `${s.answered}/${s.questions.length}`], ["Plays used", plays], ["Target", `${P.PASS_MARK}%`], ["Marks", s.questions.length]];
-    return h("div", { class: "hud", "aria-live": "polite" }, cells.map(([k, v]) =>
-      h("div", null, h("div", { class: "k" }, k), h("div", { class: "v" + (k === "Streak" && v >= 3 ? " ok" : "") }, v))));
+    else if (s.live) cells = [["Score", `${s.correct}/${s.answered}`], ["Accuracy", pct], ["Plays used", plays], clock];
+    else cells = [["Answered", `${s.answered}/${s.questions.length}`], ["Plays used", plays], clock];
+    return h("div", { class: "hud", "aria-live": "off" }, cells.map((c) => c.nodeType ? c :
+      h("div", null, h("div", { class: "k" }, c[0]), h("div", { class: "v" + (c[0] === "Streak" && c[1] >= 3 ? " ok" : "") }, c[1]))));
   }
 
   function questionScreen() {
     const s = state.session;
     const q = s.questions[s.index];
     const mock = s.mode === "mock";
-    const cat = byKey(q.topic || q.category); // an excerpt shows its own name, not its first part's topic
+    const cat = byKey(q.category);
+    const o = outcomeOf(q.outcome);
     const playing = S.isPlaying();
     const canPlay = !mock || s.playsUsed < MAX_PLAYS;
     const ok = s.selected === q.correct;
-    const instName = q.hideInst && !s.revealed ? "???" : S.INSTRUMENTS[q.inst].name;
     const last = s.index + 1 === s.questions.length;
 
-    return h("div", { class: "panel" },
+    return h("div", { class: "panel quiz" },
       state.audioError && h("div", { class: "alert", role: "alert" }, "Sound could not start. Check your volume and that this browser allows audio, then press Play again."),
       h("div", { class: "qtop" },
-        h("div", { class: "tags" },
-          tag(cat.name, "white"),
-          tag(`Instrument: ${instName}`, "blue"),
-          q.group && tag(`Excerpt part ${partLetter(q.part).toUpperCase()} of ${q.parts}`, "amber"),
-          mock && tag(s.live ? "Live feedback" : "Exam conditions", s.live ? "green" : "amber")),
-        h("span", { class: "label" }, mock ? `Question ${pad2(s.index + 1)} / ${s.questions.length}` : "Practice")),
-      strip(s, mock),
-      hud(s, mock),
-      q.group && h("p", { class: "intro" }, q.intro),
-      h("h2", { class: "prompt" }, q.group && h("span", { class: "part" }, `(${partLetter(q.part)})`), q.prompt),
+        h("p", { class: "meta" }, `Outcome ${o.n} · ${cat.name}`, mock ? ` · ${s.live ? "answers shown" : "exam conditions"}` : " · practice"),
+        h("p", { class: "meta" }, mock ? `Question ${s.index + 1} of ${s.questions.length}` : `Instrument: ${S.INSTRUMENTS[q.inst].name}`)),
+      strip(s),
+      hud(s),
+      h("h2", { class: "prompt" }, q.prompt),
       h("div", { class: "stage" },
         h("canvas", { id: "stage", "aria-hidden": "true" }),
-        h("div", { class: "tl" }, s.revealed ? "Note roll" : "Live level"),
-        h("div", { class: "tr", id: "stage-state" }, playing ? "● Playing" : (s.revealed ? "○ Stopped" : "○ Silent"))),
+        h("div", { class: "tl" }, s.revealed ? "Note roll" : "Level"),
+        h("div", { class: "tr" + (playing ? " live" : ""), id: "stage-state" }, playing ? "Playing" : (s.revealed ? "Stopped" : "Silent"))),
       h("div", { class: "playrow" },
         h("button", { class: "btn primary", id: "play", disabled: !canPlay || playing, onclick: replay },
-          playing ? "Playing..." : !canPlay ? "No plays left" : s.playsUsed === 0 ? "Play" : "Play again (R)"),
-        mock && h("span", { class: "label" }, `Heard ${Math.min(s.playsUsed, MAX_PLAYS)} of ${MAX_PLAYS} times`)),
+          playing ? "Playing" : !canPlay ? "No plays left" : "Play again"),
+        mock && h("span", { class: "meta" }, `Heard ${Math.min(s.playsUsed, MAX_PLAYS)} of ${MAX_PLAYS} times`)),
       h("div", { class: "options", role: "group", "aria-label": "Answer choices" }, q.options.map((opt, i) => {
         let cls = "opt";
         if (s.revealed) cls += i === q.correct ? " right" : s.selected === i ? " wrong" : " dimmed";
@@ -439,100 +433,120 @@
         return h("button", { class: cls, "aria-pressed": String(s.selected === i), disabled: s.revealed, onclick: () => select(i) },
           h("span", { class: "num" }, i < 9 ? String(i + 1) : ""), h("span", { class: "txt" }, opt));
       })),
-      s.mode === "mock" && !s.live
+      mock && !s.live
         ? h("div", { class: "actions" },
             h("button", { class: "btn primary", disabled: s.selected == null, onclick: submitMock },
-              last ? "Submit and see results" : "Lock in answer and continue"))
+              last ? "Submit paper" : "Lock in and continue"))
         : s.revealed && h("div", { class: "feedback " + (ok ? "good" : "bad"), role: "status" },
-            h("div", { class: "verdict" }, ok ? "Correct" : "Not quite"),
-            !ok && h("p", null, `The answer was: ${q.options[q.correct]}`),
-            h("p", null, q.explanation),
+            h("p", { class: "verdict" }, ok ? "Correct" : "Not quite"),
+            !ok && h("p", null, `The answer was ${q.options[q.correct]}`),
+            h("p", { class: "why" }, q.explanation),
             h("div", { class: "actions" },
               h("button", { class: "btn primary", id: "next", onclick: advance },
-                mock ? (last ? "See results (Enter)" : "Next question (Enter)") : (q.group && s.index + 1 < s.questions.length ? "Next part (Enter)" : "Next question (Enter)")))),
-      h("p", { class: "keys" }, h("span", { class: "kbd" }, "R"), " replay ", h("span", { class: "kbd" }, "1-9"), " choose ",
-        h("span", { class: "kbd" }, "Enter"), mock && !s.live ? " lock in" : " continue"));
+                mock && last ? "See results" : "Next question"))),
+      h("p", { class: "keys" }, h("kbd", null, "R"), " replay", h("kbd", null, "1-9"), " choose", h("kbd", null, "Enter"), mock && !s.live ? " lock in" : " continue"));
   }
 
   function resultsScreen() {
     const sum = state.summary;
-    const pct = P.pct(sum.score, sum.total);
-    const pass = pct >= P.PASS_MARK;
-    const weak = sum.per.filter((r) => r.correct < r.total)
-      .sort((a, b) => a.correct / a.total - b.correct / b.total).slice(0, 3);
-    return h("div", { class: "panel" },
-      h("div", { class: "tags" }, tag("Entry check", "blue"), tag(pass ? "Above target" : "Below target", pass ? "green" : "amber")),
-      h("div", { class: "score " + (pass ? "ok" : "no") }, `${sum.score}/${sum.total}`),
-      h("p", { class: "label" }, `${pct}% (target ${P.PASS_MARK}%)`),
-      h("p", { style: "margin-top:12px" }, pass
-        ? `You are above the ${P.PASS_MARK}% self-check target. Keep practising the topics marked below to stay sharp.`
-        : `Below the ${P.PASS_MARK}% self-check target. Practise the weakest topics below, then try the entry check again.`),
-      h("div", { class: "sect" }, "By topic"),
-      h("table", { class: "t" }, h("tbody", null, sum.per.map((r) =>
-        h("tr", null, h("td", null, r.cat.name), h("td", { class: "bar-cell" }, seg(P.pct(r.correct, r.total))), h("td", { class: "num" }, `${r.correct}/${r.total}`))))),
-      weak.length > 0 && h("div", null,
-        h("div", { class: "sect" }, "Revise these first"),
-        weak.map((r) => h("div", { class: "row", style: "margin:8px 0" },
-          h("span", { style: "min-width:220px;font-weight:600;color:var(--fg)" }, r.cat.name),
-          h("button", { class: "btn small", onclick: () => startSession("practice", r.cat.key, generate(r.cat.key)) }, "Practise")))),
-      sum.missed.length > 0 && h("div", null,
-        h("div", { class: "sect" }, `Questions you missed (${sum.missed.length})`),
-        sum.missed.map((m, i) => h("details", null,
-          h("summary", null, `${i + 1}. ${byKey(m.q.category).name}${m.q.group ? ` (part ${partLetter(m.q.part)})` : ""}`),
-          h("p", null, m.q.prompt),
-          h("p", { class: "no" }, `You answered: ${m.q.options[m.chosen]}`),
-          h("p", { class: "ok" }, `Correct answer: ${m.q.options[m.q.correct]}`),
-          h("p", null, m.q.explanation),
-          h("button", { class: "btn small", onclick: () => playEvents(m.q.events) }, "Hear it again")))),
+    const failed = sum.sections.filter((x) => !x.pass);
+    const passed = failed.length === 0;
+    const allFailed = sum.full && failed.length === sum.sections.length;
+    const startAgain = () => startMock(failed.map((x) => x.o.n));
+    return h("div", { class: "panel results" },
+      h("p", { class: "meta" }, sum.full ? "Mock exam result" : "Resit result"),
+      h("h2", null, passed ? "All sections passed" : failed.length === 1 ? "One section to resit" : `${failed.length} sections to resit`),
+      sum.timedOut && h("p", { class: "note" }, "Time ran out. Unanswered questions scored nothing."),
+      h("div", { class: "sections" }, sum.sections.map((x) =>
+        h("div", { class: "sec " + (x.pass ? "pass" : "fail") },
+          h("div", null, h("p", { class: "meta" }, `Outcome ${x.o.n}`), h("h3", null, x.o.name)),
+          h("div", { class: "sec-score" },
+            h("strong", null, `${x.score}`, h("span", null, `/${x.total}`)),
+            h("span", { class: "meta" }, `Pass mark ${x.o.pass} · ${x.pass ? "passed" : "not yet"}`))))),
+      h("p", { class: "advice" }, passed
+        ? "Every outcome met its pass mark. The real paper is closed book, so keep practising without the crib sheet."
+        : allFailed
+          ? "All three outcomes are below the pass mark, so an alternative paper is the right next step. Use the button below for a fresh one."
+          : `Below the pass mark: ${failed.map((x) => `Outcome ${x.o.n}`).join(" and ")}. You only need to resit ${failed.length === 1 ? "that section" : "those sections"}.`),
+      sum.sections.some((x) => x.missed.length) && h("div", { class: "missed" },
+        h("h3", { class: "section-title" }, "Questions you missed"),
+        sum.sections.flatMap((x) => x.missed.map((m) =>
+          h("details", null,
+            h("summary", null, h("span", { class: "meta" }, `Outcome ${x.o.n}`), byKey(m.q.category).name),
+            h("p", null, m.q.prompt),
+            h("p", { class: "no" }, m.chosen == null ? "You did not answer" : `You answered ${m.q.options[m.chosen]}`),
+            h("p", { class: "ok" }, `Correct answer: ${m.q.options[m.q.correct]}`),
+            h("p", null, m.q.explanation),
+            h("button", { class: "btn small", onclick: () => playEvents(m.q.events) }, "Hear it again"))))),
       h("div", { class: "actions" },
-        h("button", { class: "btn primary", onclick: () => startSession("mock", null, mockTest(MOCK_PER_CATEGORY), P.setting("live")) }, "Retake entry check"),
-        h("button", { class: "btn", onclick: () => go("home") }, "Back to home")));
+        passed
+          ? h("button", { class: "btn primary", onclick: () => startMock() }, "Sit another paper")
+          : h("button", { class: "btn primary", onclick: allFailed ? () => startMock() : startAgain },
+              allFailed ? "Start alternative paper" : "Resit failed sections"),
+        h("button", { class: "btn", onclick: () => go("home") }, "Back to practice")));
+  }
+
+  function cribScreen() {
+    return h("div", { class: "crib" },
+      h("div", { class: "lead" },
+        h("h2", null, "Crib sheet"),
+        h("p", null, "Revision reference for the three outcomes. Intervals and chords can start on any note. The exam itself is closed book.")),
+      OUTCOMES.map((o) => h("section", { class: "outcome" },
+        h("header", null, h("div", null, h("p", { class: "meta" }, `Outcome ${o.n}`), h("h3", null, o.name))),
+        h("div", { class: "crib-grid" }, AT.crib.filter((c) => c.outcome === o.n).map((c) =>
+          h("article", { class: "panel" },
+            h("h4", null, c.title),
+            h("table", { class: "t" },
+              h("thead", null, h("tr", null, c.head.map((x) => h("th", null, x)))),
+              h("tbody", null, c.rows.map((r) => h("tr", null, r.map((x) => h("td", null, x)))))),
+            c.note && h("p", { class: "note" }, c.note)))))));
   }
 
   function progressScreen() {
     const mocks = P.mocks();
-    return h("div", { class: "panel" },
-      h("h2", { style: "margin-top:0" }, "Your progress"),
-      h("p", { class: "muted" }, "Accuracy per topic across all practice and entry checks. Saved in this browser only."),
+    return h("div", { class: "panel progress" },
+      h("h2", null, "Your progress"),
+      h("p", { class: "note" }, "Accuracy per topic across practice and mock exams. The tick marks the 70% pass line."),
       !P.storageOk() && h("div", { class: "alert" }, "This browser is blocking storage, so progress will be lost when you close the page."),
-      h("table", { class: "t" }, h("tbody", null, CATEGORIES.map((c) => {
-        const st = P.stat(c.key);
-        return h("tr", null, h("td", null, c.name), h("td", { class: "bar-cell" }, seg(st.percent || 0)),
-          h("td", { class: "num" }, st.attempts ? `${st.correct}/${st.attempts}` : "no data"));
-      }))),
-      h("div", { class: "sect" }, "Entry check history"),
-      mocks.length === 0 && h("p", { class: "muted" }, "No entry checks completed yet."),
-      h("div", { class: "hist" }, mocks.slice(-10).reverse().map((m, i) => h("div", null,
-        h("span", { class: "dim" }, `#${mocks.length - i}`),
-        h("strong", { class: m.percent >= P.PASS_MARK ? "ok" : "no" }, `${m.score}/${m.total} (${m.percent}%)`),
-        h("span", { class: "muted" }, fmtDate(m.when))))),
-      mocks.length > 10 && h("p", { class: "muted small-text" }, `(showing latest 10 of ${mocks.length})`),
+      OUTCOMES.map((o) => h("div", null,
+        h("p", { class: "meta group" }, `Outcome ${o.n} · ${o.name}`),
+        h("table", { class: "t" }, h("tbody", null, CATEGORIES.filter((c) => c.outcome === o.n).map((c) => {
+          const st = P.stat(c.key);
+          return h("tr", null, h("td", null, c.name), h("td", { class: "bar-cell" }, meter(st.percent || 0, `${c.name} accuracy`)),
+            h("td", { class: "num" }, st.attempts ? `${st.correct}/${st.attempts}` : "No data"));
+        }))))),
+      h("h3", { class: "section-title" }, "Mock exam history"),
+      mocks.length === 0 && h("p", { class: "note" }, "No mock exams completed yet"),
+      h("div", { class: "hist" }, mocks.slice(-10).reverse().map((m, i) => {
+        const parts = (m.outcomes || []).map(([n, sc, tot]) => {
+          const o = outcomeOf(n);
+          return h("span", { class: sc >= o.pass ? "ok" : "no" }, `O${n} ${sc}/${tot}`);
+        });
+        return h("div", null, h("time", null, fmtDate(m.when)), h("strong", null, `${m.score}/${m.total}`), h("span", { class: "parts" }, parts));
+      })),
+      mocks.length > 10 && h("p", { class: "note" }, `Showing the latest 10 of ${mocks.length}`),
       h("div", { class: "actions" }, state.confirmReset
         ? [h("span", { class: "no", style: "align-self:center" }, "This permanently deletes all saved results."),
-           h("button", { class: "btn danger", onclick: () => { P.reset(); state.confirmReset = false; render(); } }, "Yes, delete everything"),
+           h("button", { class: "btn danger", onclick: () => { P.reset(); state.confirmReset = false; render(); } }, "Delete everything"),
            h("button", { class: "btn", onclick: () => { state.confirmReset = false; render(); } }, "Cancel")]
         : h("button", { class: "btn", onclick: () => { state.confirmReset = true; render(); } }, "Reset progress")));
   }
 
   // ---------- render + input ----------
   function updateChrome() {
-    const navOn = state.screen === "progress" ? "progress" : "home";
+    const navOn = state.screen === "progress" ? "progress" : state.screen === "crib" ? "crib" : "home";
     document.querySelectorAll("[data-nav]").forEach((b) => b.classList.toggle("on", b.dataset.nav === navOn));
-    const last = P.mocks().slice(-1)[0];
     const pref = P.setting("inst");
     const info = [
-      `${CATEGORIES.length} topics`,
-      last ? `Last check ${last.score}/${last.total} (${last.percent}%)` : "No entry check yet",
-      `Instrument: ${pref === "mixed" ? "mixed" : S.INSTRUMENTS[pref].name}`,
       P.storageOk() ? "Saved in this browser" : "Storage blocked",
-    ].join("  ·  ");
+      `Instrument: ${pref === "mixed" ? "mixed" : S.INSTRUMENTS[pref].name}`,
+    ].join(" · ");
     const node = document.getElementById("foot-info");
     if (node && node.textContent !== info) node.textContent = info;
   }
 
   function render() {
-    const screens = { home: homeScreen, question: questionScreen, results: resultsScreen, progress: progressScreen };
-    // Keep keyboard focus on the same control across re-renders.
+    const screens = { home: homeScreen, question: questionScreen, results: resultsScreen, progress: progressScreen, crib: cribScreen };
     const active = document.activeElement;
     const inRoot = active && root.contains(active);
     const activeId = inRoot && active.id ? active.id : null;
@@ -559,7 +573,6 @@
     if (e.key === "r" || e.key === "R") { e.preventDefault(); replay(); }
     else if (/^[1-9]$/.test(e.key)) { select(Number(e.key) - 1); }
     else if (e.key === "Enter") {
-      // On an answer button Enter selects it, except in exam mode where Enter on the chosen answer locks it in.
       const chosen = onOption && e.target.getAttribute("aria-pressed") === "true";
       if (!onButton || chosen) { e.preventDefault(); advance(); }
     }
@@ -567,7 +580,7 @@
 
   g.addEventListener("resize", drawStage);
 
-  AT.app = { state, render }; // exposed for debugging and tests
+  AT.app = { state, render };
   render();
   g.requestAnimationFrame(tick);
 })(window);

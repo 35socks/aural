@@ -2,7 +2,6 @@
 (function (g) {
   const AT = (g.AT = g.AT || {});
 
-  // ---- random helpers ----
   const R = {
     below: (n) => Math.floor(Math.random() * n),
     range: (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1)),
@@ -19,56 +18,58 @@
 
   const freq = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
 
-  const INTERVAL_SEMITONES = [1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12];
-  const INTERVAL_LABELS = ["2nd", "3rd", "4th", "5th", "6th", "7th", "Octave"];
-  function intervalNumber(s) {
-    switch (s) {
-      case 1: case 2: return "2nd";
-      case 3: case 4: return "3rd";
-      case 5: return "4th";
-      case 7: return "5th";
-      case 8: case 9: return "6th";
-      case 10: case 11: return "7th";
-      case 12: return "Octave";
-      default: return null;
-    }
-  }
+  // Unit F58L 11, Outcome 1(a): unison, major 2nd, major 3rd, perfect 4th, perfect 5th, major 6th, major 7th, octave.
+  const INTERVALS = [
+    { name: "Unison", semis: 0, from: "C to C" },
+    { name: "Major 2nd", semis: 2, from: "C to D" },
+    { name: "Major 3rd", semis: 4, from: "C to E" },
+    { name: "Perfect 4th", semis: 5, from: "C to F" },
+    { name: "Perfect 5th", semis: 7, from: "C to G" },
+    { name: "Major 6th", semis: 9, from: "C to A" },
+    { name: "Major 7th", semis: 11, from: "C to B" },
+    { name: "Octave", semis: 12, from: "C to C" },
+  ];
 
-  const MAJOR = [0, 2, 4, 5, 7, 9, 11, 12];
+  // Scale patterns from the tonic, as semitones above it.
+  const MAJOR = [0, 2, 4, 5, 7, 9, 11];
+  const NAT_MINOR = [0, 2, 3, 5, 7, 8, 10];
+  const HARM_MINOR = [0, 2, 3, 5, 7, 8, 11];
+  const MEL_MINOR_UP = [0, 2, 3, 5, 7, 9, 11];
+
   const SCALES = [
-    ["Major", MAJOR],
-    ["Natural minor", [0, 2, 3, 5, 7, 8, 10, 12]],
-    ["Harmonic minor", [0, 2, 3, 5, 7, 8, 11, 12]],
-    ["Chromatic", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]],
-    ["Whole tone", [0, 2, 4, 6, 8, 10, 12]],
-    ["Pentatonic", [0, 2, 4, 7, 9, 12]],
-  ];
-  const CHORD_QUALITIES = [
-    ["Major", [0, 4, 7]],
-    ["Minor", [0, 3, 7]],
-    ["Dominant 7th", [0, 4, 7, 10]],
-    ["Diminished", [0, 3, 6]],
-    ["Augmented", [0, 4, 8]],
+    { name: "Major", up: [...MAJOR, 12], down: [12, ...MAJOR.slice().reverse()] },
+    { name: "Melodic minor", up: [...MEL_MINOR_UP, 12], down: [12, ...NAT_MINOR.slice().reverse()] },
+    { name: "Harmonic minor", up: [...HARM_MINOR, 12], down: [12, ...HARM_MINOR.slice().reverse()] },
   ];
 
-  // Triad on a degree of the major key (I, II, IV, V, VI), root position.
-  const DEGREES = { I: [0, false], II: [2, true], IV: [5, false], V: [7, false], VI: [9, true] };
+  const TRIADS = [
+    { name: "Major", notes: [0, 4, 7] },
+    { name: "Minor", notes: [0, 3, 7] },
+  ];
+
+  const SEVENTHS = [
+    { name: "Major 7th", notes: [0, 4, 7, 11], text: "Major 7th: a major triad with a major 7th on top (4 + 3 + 4 semitones). It sounds smooth and dreamy." },
+    { name: "Minor 7th", notes: [0, 3, 7, 10], text: "Minor 7th: a minor triad with a minor 7th on top (3 + 4 + 3 semitones). It sounds mellow and relaxed." },
+    { name: "Dominant 7th", notes: [0, 4, 7, 10], text: "Dominant 7th: a major triad with a minor 7th on top (4 + 3 + 3 semitones). It sounds tense and wants to move on." },
+  ];
+
+  // Diatonic triads in a major key: [semitones above tonic, minor?, chord numeral]
+  const DEGREES = {
+    I: [0, false], ii: [2, true], iii: [4, true], IV: [5, false], V: [7, false], vi: [9, true],
+  };
+  const KEYS = [
+    { name: "C", tonic: 60, chords: { I: "C", ii: "Dm", iii: "Em", IV: "F", V: "G", vi: "Am" } },
+    { name: "G", tonic: 67, chords: { I: "G", ii: "Am", iii: "Bm", IV: "C", V: "D", vi: "Em" } },
+    { name: "F", tonic: 65, chords: { I: "F", ii: "Gm", iii: "Am", IV: "B♭", V: "C", vi: "Dm" } },
+    { name: "D", tonic: 62, chords: { I: "D", ii: "Em", iii: "F♯m", IV: "G", V: "A", vi: "Bm" } },
+  ];
+
   function triad(tonic, degree) {
     const [off, minor] = DEGREES[degree];
     const root = tonic + off;
     return [root, root + (minor ? 3 : 4), root + 7];
   }
 
-  const CADENCES = [
-    { name: "Perfect", chords: ["V", "I"], text: "Perfect cadence: chord V moves to chord I. It sounds finished, like a full stop." },
-    { name: "Imperfect", chords: ["I", "V"], text: "Imperfect cadence: the phrase ends on chord V. It sounds unfinished, like a comma." },
-    { name: "Plagal", chords: ["IV", "I"], text: "Plagal cadence: chord IV moves to chord I (the 'Amen' cadence)." },
-    { name: "Interrupted", chords: ["V", "VI"], text: "Interrupted cadence: chord V moves to chord VI instead of I, a surprise ending." },
-  ];
-
   AT.R = R;
-  AT.theory = {
-    freq, INTERVAL_SEMITONES, INTERVAL_LABELS, intervalNumber,
-    MAJOR, SCALES, CHORD_QUALITIES, triad, CADENCES,
-  };
+  AT.theory = { freq, INTERVALS, SCALES, TRIADS, SEVENTHS, DEGREES, KEYS, triad, MAJOR, NAT_MINOR, HARM_MINOR };
 })(typeof window !== "undefined" ? window : globalThis);

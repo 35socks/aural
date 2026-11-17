@@ -1,35 +1,29 @@
-# Aural Skills Trainer (HNC Music, SCQF Level 5)
+# Aural Skills (SCQF level 5, unit F58L 11)
 
-A static website for practising and testing the listening skills behind SCQF Level 5
-(National 5) Music, as preparation for HNC Music entry. No build step, no dependencies,
-no server: just HTML, CSS and JavaScript. All sounds are generated in the browser with the
-Web Audio API, so there are no audio files. Headphones recommended.
+A static website for practising the listening skills in the SCQF level 5 Music: Aural Skills unit, and for sitting a
+timed mock paper marked the way the unit is marked. No build step, no dependencies, no server: just HTML, CSS and
+JavaScript. All sounds are generated in the browser with the Web Audio API, so there are no audio files. Headphones recommended.
 
-## What it tests
+## What it covers
 
-14 topics in four groups:
+Topics follow the unit's three outcomes and performance criteria:
 
-- **Pitch & harmony:** tones and semitones, intervals, scales, chords, cadences, chord progressions.
-- **Rhythm, tempo & dynamics:** metre (simple and compound), rhythm features (dotted, Scotch snap, syncopation), tempo changes, dynamics.
-- **Texture & timbre:** bass patterns, melodic memory, instruments (piano, organ, guitar, strings, flute, clarinet, trumpet, marimba, bass).
-- **Exam-style practice:** a mixed excerpt, where one extract is followed by linked questions (a), (b), (c).
+- **Outcome 1, intervals, scales and tonality (20 marks, pass 14):** ascending intervals (unison, major 2nd, major 3rd,
+  perfect 4th and 5th, major 6th and 7th, octave); major, melodic minor and harmonic minor scales going up and down;
+  major or minor four-bar phrases.
+- **Outcome 2, triads, chords and progressions (20 marks, pass 14):** major and minor triads, melodic and harmonic;
+  four-note chords (major 7th, minor 7th, dominant 7th); three and four chord progressions by number or chord name.
+- **Outcome 3, rhythms and time signatures (10 marks, pass 7):** one-bar rhythms including dotted rhythms; 4/4, 3/4, 6/8 and 9/8.
 
-Modes:
+**Mock exam:** 50 questions, 45 minutes, closed book, each sound playable 3 times. Each outcome is marked on its own
+against its pass mark. Fail one outcome and you resit only that section; fail all three and you get a fresh alternative paper.
+Answers are hidden until the end unless you switch on "Show answers as I go".
 
-- **Practise a topic:** instant feedback, explanation, unlimited replays.
-- **Entry check:** 29 questions (2 per topic plus a 3-part excerpt), 3 plays each. The 70% target is a
-  self-check benchmark, not an official SQA or college mark.
+**Practice:** unlimited questions per topic with instant feedback and an explanation. A live level meter and a note roll
+with a moving playhead show what you are hearing.
 
-**Real-time feedback:** a live level meter while the sound plays, a note roll with a moving playhead once
-you have answered, a running score, accuracy and streak, a block-per-question progress strip, and a status
-bar showing playback. In the entry check, **Live feedback** (on by default) shows right or wrong straight
-after each answer; switch it off for exam conditions, where answers only appear at the end.
-
-**Instruments:** every question is played on an instrument chosen at random to suit it (chords on
-chord-capable instruments, fast rhythms on quick-attack ones). Use the **Instrument** menu to fix one
-instrument for everything except the Instruments topic.
-
-Progress and settings are saved in the visitor's own browser (localStorage). Nothing is sent anywhere.
+Also included: a **crib sheet** page (from the one-page revision sheet), the term's key dates, and an **Instrument** menu so
+you can hear everything on the instrument you play. Progress is saved in your own browser (localStorage), and nothing is sent anywhere.
 
 Keyboard: `R` replay, `1`-`9` choose an answer, `Enter` continue (or lock in, in exam conditions).
 
@@ -81,10 +75,11 @@ python3 -m http.server 8000
 
 | File | Purpose |
 | --- | --- |
-| `index.html`, `style.css` | Page and styling (blocky dark theme) |
-| `js/theory.js` | Scales, chords, cadences, intervals |
+| `index.html`, `style.css` | Page and styling |
+| `js/theory.js` | Intervals, scales, chords and keys |
 | `js/synth.js` | Web Audio sound engine: instruments, live level meter |
-| `js/ex_pitch.js`, `ex_texture.js`, `ex_rhythm.js`, `ex_excerpt.js` | Question generators |
-| `js/exercises.js` | Topic list and mock test builder |
+| `js/ex_pitch.js`, `js/ex_rhythm.js` | Question generators for Outcomes 1 to 3 |
+| `js/exercises.js` | Outcomes, pass marks, topics and the mock paper builder |
+| `js/crib.js` | Crib sheet content |
 | `js/progress.js` | Saved results and settings |
 | `js/app.js` | Screens and input |

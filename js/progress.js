@@ -1,9 +1,8 @@
 /* Saved progress and settings in localStorage (falls back to memory if storage is blocked). */
 (function (g) {
   const AT = g.AT;
-  const KEY = "aural-trainer-progress-v1";
-  const PASS_MARK = 70; // self-check target, not an official mark
-  const DEFAULT_SETTINGS = { inst: "mixed", live: true, view: "grid" };
+  const KEY = "aural-trainer-progress-v2";
+    const DEFAULT_SETTINGS = { inst: "mixed", live: false };
 
   let data = { stats: {}, mocks: [], settings: { ...DEFAULT_SETTINGS } };
   let storageOk = true;
@@ -32,8 +31,7 @@
   const pct = (c, t) => (t === 0 ? 0 : Math.round((c * 100) / t));
 
   AT.progress = {
-    PASS_MARK,
-    load,
+        load,
     storageOk: () => storageOk,
     setting: (k) => data.settings[k],
     setSetting(k, v) { data.settings[k] = v; save(); },
@@ -48,8 +46,8 @@
       s.last = Date.now();
       save();
     },
-    recordMock(score, total) {
-      data.mocks.push({ when: Date.now(), score, total });
+    recordMock(score, total, outcomes) {
+      data.mocks.push({ when: Date.now(), score, total, outcomes: outcomes || [] });
       save();
     },
     mocks: () => data.mocks.map((m) => ({ ...m, percent: pct(m.score, m.total) })),

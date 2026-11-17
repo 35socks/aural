@@ -1,19 +1,22 @@
-/* Rhythm, metre, tempo and dynamics questions. */
+/* Outcome 3 questions: rhythms (including dotted rhythms) and time signatures. */
 (function (g) {
   const AT = g.AT;
   const { R, theory: T } = AT;
   const { note } = AT.pitch;
   const E = () => AT.synth.ev;
 
+  // Unit F58L 11, Outcome 3(b): 4/4, 3/4, 6/8 and 9/8. [label, main beats per bar, divisions per beat]
   const METRES = [
-    ["2/4", 2, 2], ["3/4", 3, 2], ["4/4", 4, 2],
-    ["6/8", 2, 3], ["9/8", 3, 3], ["12/8", 4, 3],
-  ]; // [label, beats per bar, subdivisions per beat]
+    ["4/4", 4, 2, "simple quadruple"],
+    ["3/4", 3, 2, "simple triple"],
+    ["6/8", 2, 3, "compound duple"],
+    ["9/8", 3, 3, "compound triple"],
+  ];
 
-  function metre() {
+  function timeSignatures() {
     const idx = R.below(METRES.length);
-    const [label, beats, subs] = METRES[idx];
-    const beatLen = 0.55;
+    const [label, beats, subs, kind] = METRES[idx];
+    const beatLen = subs === 3 ? 0.6 : 0.5;
     const bars = beats === 2 ? 4 : 3;
     const events = [];
     for (let bar = 0; bar < bars; bar++) {
@@ -22,117 +25,78 @@
         events.push(E().click(t, beat === 0, 1.0));
         for (let s = 0; s < subs; s++) {
           const pitch = 60 + T.MAJOR[beat === 0 && s === 0 ? 0 : 4];
-          events.push(E().tone(t + (s * beatLen) / subs, 0.12, [T.freq(pitch)], s === 0 ? 0.45 : 0.28));
+          events.push(E().tone(t + (s * beatLen) / subs, 0.12, [T.freq(pitch)], s === 0 ? 0.5 : 0.26));
         }
       }
     }
     const compound = subs === 3;
     return {
-      category: "metre",
-      prompt: "Listen to the pulse (a high click marks the first beat of each bar). What is the time signature?",
+      category: "timeSignatures",
+      prompt: "Listen to the pulse. A high click marks the first beat of each bar. What is the time signature?",
       options: METRES.map((m) => m[0]),
       correct: idx,
       events,
       allow: AT.synth.AGILE,
-      explanation: `${label}: ${beats} main beats per bar, each split into ${subs}, so it is ${compound ? "compound" : "simple"} time. ` +
-        (compound ? "Compound time feels like a lilting 1-2-3, 1-2-3." : "Simple time splits each beat into two."),
+      explanation: `${label} is ${kind} time: ${beats} main beats in each bar, and each beat divides into ${subs}. ` +
+        (compound ? "Compound time has a lilting feel, 1-2-3 1-2-3." : "Simple time divides each beat into two."),
     };
   }
 
-  const RHYTHM_TEXT = [
-    "Straight rhythm: even notes that line up with the beat.",
-    "Dotted rhythm: a long-short, 'jerky' pattern (dotted quaver then semiquaver).",
-    "Scotch snap: a short note on the beat followed by a longer note, a Scottish folk feature.",
-    "Syncopation: notes are stressed between the beats, so the accents feel off-beat.",
+  // One-bar rhythms in 4/4, as note lengths in crotchet beats.
+  const LEN_NAME = { 0.25: "semiquaver", 0.5: "quaver", 1: "crotchet", 1.5: "dotted crotchet", 2: "minim", 3: "dotted minim" };
+  const PATTERNS = [
+    [1, 1, 1, 1],
+    [1.5, 0.5, 1, 1],
+    [1, 1, 0.5, 0.5, 1],
+    [2, 1, 1],
+    [1, 0.5, 0.5, 1, 1],
+    [1.5, 0.5, 1.5, 0.5],
+    [3, 1],
+    [0.5, 0.5, 0.5, 0.5, 1, 1],
+    [1, 1.5, 0.5, 1],
+    [1.5, 0.5, 2],
   ];
-
-  function rhythmFeature() {
-    const kind = R.below(4); // 0 straight, 1 dotted, 2 Scotch snap, 3 syncopation
-    const beat = 0.5;
-    const pitches = [60, 62, 64, 62, 60, 64, 67, 64];
-    const events = [];
-    let t = 0, p = 0;
-    const push = (len) => {
-      events.push(note(t, len * 0.95, pitches[p % pitches.length], 0.8));
-      t += len;
-      p++;
-    };
-    for (let rep = 0; rep < 4; rep++) {
-      if (kind === 0) { for (let i = 0; i < 4; i++) push(beat / 2); }
-      else if (kind === 1) { for (let i = 0; i < 2; i++) { push(beat * 0.75); push(beat * 0.25); } }
-      else if (kind === 2) { for (let i = 0; i < 2; i++) { push(beat * 0.25); push(beat * 0.75); } }
-      else { push(beat / 2); push(beat); push(beat / 2); }
+  const dotted = (p) => p.some((n) => n === 1.5 || n === 3);
+  const describe = (p) => {
+    const parts = [];
+    for (let i = 0; i < p.length; i++) {
+      if (p[i] === 0.5 && p[i + 1] === 0.5) { parts.push("2 quavers"); i++; }
+      else parts.push(LEN_NAME[p[i]]);
     }
-    for (let ct = 0; ct < t - 1e-6; ct += beat) {
-      const barPos = (ct / (beat * 2)) % 1;
-      events.push(E().click(ct, barPos < 0.01, 0.6));
+    return parts.join(", ");
+  };
+
+  function rhythms() {
+    const answer = R.below(PATTERNS.length);
+    const pat = PATTERNS[answer];
+    const wantDotted = dotted(pat);
+    // Distractors: prefer a mix, always the same bar length
+    const others = R.shuffle([...PATTERNS.keys()].filter((i) => i !== answer));
+    const picks = R.shuffle([answer, others[0], others[1], others[2]]);
+    const beat = 0.5;
+    const events = [];
+    const pitches = [64, 64, 67, 64, 62, 64];
+    // bar 0: count-in clicks, bars 1 and 2: the rhythm
+    for (let b = 0; b < 4; b++) events.push(E().click(b * beat, b === 0, 0.7));
+    for (let rep = 0; rep < 2; rep++) {
+      let t = (4 + rep * 4) * beat;
+      pat.forEach((len, i) => {
+        events.push(note(t, len * beat * 0.92, pitches[i % pitches.length], 0.85));
+        t += len * beat;
+      });
+      for (let b = 0; b < 4; b++) events.push(E().click((4 + rep * 4 + b) * beat, b === 0, 0.35));
     }
     return {
-      category: "rhythmFeature",
-      prompt: "Follow the clicks and listen to the melody rhythm. Which feature is it?",
-      options: ["Straight rhythm", "Dotted rhythm", "Scotch snap", "Syncopation"],
-      correct: kind,
+      category: "rhythms",
+      prompt: "Four clicks count you in, then a one-bar rhythm is played twice in 4/4. Which rhythm is it?",
+      options: picks.map((i) => describe(PATTERNS[i])),
+      correct: picks.indexOf(answer),
       events,
       allow: AT.synth.AGILE,
-      explanation: RHYTHM_TEXT[kind],
+      explanation: `The rhythm was: ${describe(pat)}.` +
+        (wantDotted ? " A dot makes a note half as long again, so a dotted crotchet lasts 1½ beats and is usually followed by a quaver." : " Count the main beats and listen for where the notes split."),
     };
   }
 
-  const TEMPO_TEXT = [
-    "Steady tempo: the beat stayed the same throughout.",
-    "Ritardando (rit.): the music gradually slows down.",
-    "Accelerando (accel.): the music gradually speeds up.",
-  ];
-
-  function tempo() {
-    const kind = R.below(3); // 0 steady, 1 ritardando, 2 accelerando
-    const pitches = [60, 64, 67, 64, 60, 64, 67, 72, 67, 64];
-    const base = kind === 2 ? 0.7 : 0.35;
-    const events = [];
-    let t = 0, gap = base;
-    pitches.forEach((p, i) => {
-      events.push(note(t, gap * 0.9, p, 0.8));
-      t += gap;
-      if (kind === 1) gap *= 1.17;
-      if (kind === 2) gap *= 0.87;
-      if (i < 3) gap = base; // first four notes establish the steady beat
-    });
-    return {
-      category: "tempo",
-      prompt: "Listen to the melody. What happens to the speed?",
-      options: ["Steady", "Ritardando", "Accelerando"],
-      correct: kind,
-      events,
-      explanation: TEMPO_TEXT[kind],
-    };
-  }
-
-  const DYN_TEXT = [
-    "pp (pianissimo): very quiet throughout.",
-    "ff (fortissimo): very loud throughout.",
-    "Crescendo: gradually getting louder.",
-    "Diminuendo: gradually getting quieter.",
-    "Sforzando (sfz): one note suddenly and sharply accented.",
-  ];
-
-  function dynamics() {
-    const kind = R.below(5); // pp, ff, cresc, dim, sfz
-    const pitches = [60, 62, 64, 65, 67, 65, 64, 62];
-    const n = pitches.length;
-    const events = pitches.map((p, i) => {
-      const f = i / (n - 1);
-      const vol = [0.12, 0.95, 0.12 + 0.8 * f, 0.92 - 0.8 * f, i === 4 ? 1.0 : 0.22][kind];
-      return note(i * 0.45, 0.42, p, vol);
-    });
-    return {
-      category: "dynamics",
-      prompt: "Listen to the volume of the melody. Which dynamic marking fits?",
-      options: ["pp (very quiet)", "ff (very loud)", "Crescendo", "Diminuendo", "Sforzando"],
-      correct: kind,
-      events,
-      explanation: DYN_TEXT[kind],
-    };
-  }
-
-  AT.rhythm = { metre, rhythmFeature, tempo, dynamics };
+  AT.rhythm = { timeSignatures, rhythms };
 })(typeof window !== "undefined" ? window : globalThis);
