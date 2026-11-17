@@ -118,7 +118,7 @@
     };
   }
 
-  // ---- Outcome 2(b): four-note chords, including major and minor 7ths ----
+  // ---- Outcome 2(b): chords, including major and minor 7ths ----
   function sevenths() {
     const CHORDS = [
       { name: "Major", notes: T.TRIADS[0].notes, text: "Major triad: root, major 3rd and perfect 5th (4 + 3 semitones). Only three notes, and it sounds bright." },

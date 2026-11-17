@@ -70,7 +70,7 @@
       ],
       recall: [["Major scale pattern?", "T T S T T T S"], ["Which minor scale has a three-semitone gap?", "Harmonic minor"], ["Melodic minor coming down is the same as...?", "Natural minor"]] },
 
-    { title: "Triads and four-note chords", outcome: 2,
+    { title: "Triads and seventh chords", outcome: 2,
       cards: [
         { name: "Big step first or small step first",
           body: "Both triads are the same pair of gaps in a different order. Major: 4 then 3. Minor: 3 then 4. Listen only to the lower gap, the one between the root and the 3rd. If it is wide, the chord is major.",

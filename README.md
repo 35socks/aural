@@ -12,7 +12,7 @@ Topics follow the unit's three outcomes and performance criteria:
   perfect 4th and 5th, major 6th and 7th, octave); major, melodic minor and harmonic minor scales going up and down;
   major or minor four-bar phrases.
 - **Outcome 2, triads, chords and progressions (20 marks, pass 14):** major and minor triads, melodic and harmonic;
-  four-note chords (major 7th, minor 7th, dominant 7th); three and four chord progressions by number or chord name.
+  chords (major, minor, major 7th, minor 7th, dominant 7th); three and four chord progressions by number or chord name.
 - **Outcome 3, rhythms and time signatures (10 marks, pass 7):** one-bar rhythms including dotted rhythms; 4/4, 3/4, 6/8 and 9/8.
 
 **Mock exam:** 50 questions, 45 minutes, closed book, each sound playable 3 times. Each outcome is marked on its own
