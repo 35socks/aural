@@ -23,9 +23,9 @@
     { key: "sevenths", outcome: 2, pc: "2(b)", name: "Chords", mock: 6,
       blurb: "Major and minor chords, plus major 7th, minor 7th and dominant 7th chords.", gen: () => AT.pitch.sevenths() },
     { key: "progressions", outcome: 2, pc: "2(c)", name: "Chord progressions", mock: 7,
-      blurb: "Three and four chord progressions, named by number or by chord name.", gen: () => AT.pitch.progressions() },
+      blurb: "Three and four chord progressions, named by Roman numeral (I, ii, IV, V, vi).", gen: () => AT.pitch.progressions() },
     { key: "rhythms", outcome: 3, pc: "3(a)", name: "Rhythms", mock: 5,
-      blurb: "One-bar rhythms in 4/4, including dotted rhythms.", gen: () => AT.rhythm.rhythms() },
+      blurb: "One-bar rhythms in 4/4, 3/4, 6/8 and 9/8, including dotted rhythms.", gen: () => AT.rhythm.rhythms() },
     { key: "timeSignatures", outcome: 3, pc: "3(b)", name: "Time signatures", mock: 5,
       blurb: "4/4, 3/4, 6/8 and 9/8.", gen: () => AT.rhythm.timeSignatures() },
   ];

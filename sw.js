@@ -1,7 +1,7 @@
 /* Offline support: cache the app shell on install, serve from cache first, refresh in the background. */
-const CACHE = "aural-v6";
+const CACHE = "aural-v7";
 const FILES = ["./", "./style.css", "./icon.svg", "./manifest.webmanifest", "./groups/", "./learning/",
-  ...["theory", "synth", "ex_pitch", "ex_rhythm", "notation", "ex_extra", "exercises", "crib", "learning", "lessons", "progress", "plus", "app"].map((n) => `./js/${n}.js?v=6`)];
+  ...["theory", "synth", "ex_pitch", "ex_rhythm", "notation", "ex_extra", "exercises", "crib", "learning", "lessons", "progress", "plus", "app"].map((n) => `./js/${n}.js?v=7`)];
 
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => {

@@ -141,7 +141,7 @@
     };
   }
 
-  // ---- Outcome 2(c): three and four chord progressions, by number or by name ----
+  // ---- Outcome 2(c): three and four chord progressions, by Roman numeral ----
   const PROGRESSIONS = [
     ["I", "IV", "V"],
     ["I", "V", "IV"],
@@ -162,18 +162,16 @@
     const pool = R.shuffle(same.length >= 3 ? same : [...PROGRESSIONS.keys()].filter((i) => i !== answer));
     const picks = R.shuffle([answer, pool[0], pool[1], pool[2]]);
     const key = R.pick(T.KEYS);
-    const byName = R.chance(0.4);
-    const fmt = (p) => (byName ? p.map((d) => key.chords[d]).join(" - ") : p.join(" - "));
+    // The exam names progressions by Roman numeral only (I, ii, IV, V, vi...), never by chord letter.
+    const fmt = (p) => p.join(" - ");
     return {
       category: "progressions",
-      prompt: byName
-        ? `${prog.length} chords are played in ${key.name} major. Which chord names match?`
-        : `${prog.length} chords are played in a major key. Which progression is it?`,
+      prompt: `${prog.length} chords are played in a major key. Which progression is it?`,
       options: picks.map((i) => fmt(PROGRESSIONS[i])),
       correct: picks.indexOf(answer),
       events: prog.map((d, i) => keyChord(i * 1.2, 1.15, key.tonic, d, 0.78)),
       allow: AT.synth.POLY,
-      explanation: `It was ${prog.join(" - ")}${byName ? ` (${fmt(prog)})` : ""}. Find the home chord I first. Capitals are major chords (I, IV, V) and lower case are minor (ii, iii, vi).`,
+      explanation: `It was ${prog.join(" - ")}. Find the home chord I first. Capitals are major chords (I, IV, V) and lower case are minor (ii, iii, vi).`,
     };
   }
 

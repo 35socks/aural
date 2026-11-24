@@ -12,8 +12,8 @@ Topics follow the unit's three outcomes and performance criteria:
   perfect 4th and 5th, major 6th and 7th, octave); major, melodic minor and harmonic minor scales going up and down;
   major or minor four-bar phrases.
 - **Outcome 2, triads, chords and progressions (20 marks, pass 14):** major and minor triads, melodic and harmonic;
-  chords (major, minor, major 7th, minor 7th, dominant 7th); three and four chord progressions by number or chord name.
-- **Outcome 3, rhythms and time signatures (10 marks, pass 7):** one-bar rhythms including dotted rhythms; 4/4, 3/4, 6/8 and 9/8.
+  chords (major, minor, major 7th, minor 7th, dominant 7th); three and four chord progressions named by Roman numeral (I, ii, IV, V, vi).
+- **Outcome 3, rhythms and time signatures (10 marks, pass 7):** one-bar rhythms in 4/4, 3/4, 6/8 and 9/8 including dotted rhythms; 4/4, 3/4, 6/8 and 9/8.
 
 **Mock exam:** 50 questions, 45 minutes, closed book, each sound playable 3 times. Each outcome is marked on its own
 against its pass mark. Fail one outcome and you resit only that section; fail all three and you get a fresh alternative paper.
@@ -30,7 +30,7 @@ Also included: a **crib sheet** page (from the one-page revision sheet), the ter
 
 Keyboard: `R` replay, `1`-`9` choose an answer, `S` skip (practice only), `Enter` continue (or lock in, in exam conditions).
 
-**Teaching aids:** practice questions have a **Skip question** button that moves on without marking the question, so you can pick sounds to discuss in class. It never appears in the mock exam or group tests. Rhythm answers are shown as notation pictures (one bar of 4/4) as well as by name, in practice, the mock exam and the results review.
+**Teaching aids:** practice questions have a **Skip question** button that moves on without marking the question, so you can pick sounds to discuss in class. It never appears in the mock exam or group tests. Rhythm answers are shown as notation pictures (one bar in its time signature) as well as by name, in practice, the mock exam and the results review.
 
 ## What's new in v2
 
