@@ -171,6 +171,12 @@ h4 { font-size: 15px; font-weight: 500; color: var(--fg); line-height: 1.4; }
 .opt.wrong { background: var(--bad-bg); border-color: var(--bad); }
 .opt.wrong .num { color: var(--bad); }
 .opt.dimmed { opacity: .45; }
+.options.pics .opt { padding: 12px 16px; }
+.opt .pic { display: grid; gap: 4px; flex: 1; min-width: 0; }
+.opt .pic .txt { font-size: 13px; color: var(--muted); }
+.rhythm-pic { display: block; width: 100%; max-width: 300px; height: auto; color: var(--fg); }
+.pic-review { color: var(--fg); margin: 8px 0; max-width: 300px; }
+.btn.skip { margin-left: auto; }
 
 .feedback { margin-top: 24px; border-radius: 12px; padding: 20px 24px; border: 1px solid var(--line-hi); }
 .feedback > * + * { margin-top: 8px; }

@@ -90,6 +90,7 @@
       category: "rhythms",
       prompt: "Four hi-hat taps count you in, then a one-bar rhythm is played twice in 4/4. Which rhythm is it?",
       options: picks.map((i) => describe(PATTERNS[i])),
+      pictures: picks.map((i) => PATTERNS[i].slice()),
       correct: picks.indexOf(answer),
       events,
       allow: AT.synth.AGILE,

@@ -171,6 +171,17 @@
     startQuestion();
   }
 
+  /** Practice only: move to a fresh question without marking this one (handy when teaching). */
+  function skip() {
+    const s = state.session;
+    if (!s || s.mode !== "practice" || s.revealed) return;
+    const nq = s.next ? s.next() : generate(s.cat);
+    if (!nq) return AT.plus.finishDrill(s);
+    s.questions = [nq];
+    s.index = 0;
+    startQuestion();
+  }
+
   function advance() {
     const s = state.session;
     if (!s) return;
@@ -457,13 +468,15 @@
       h("div", { class: "playrow" },
         h("button", { class: "btn primary", id: "play", disabled: !canPlay || playing, onclick: replay },
           playing ? "Playing" : !canPlay ? "No plays left" : "Play again"),
-        mock && h("span", { class: "meta" }, `Heard ${Math.min(s.playsUsed, MAX_PLAYS)} of ${MAX_PLAYS} times`)),
-      h("div", { class: "options", role: "group", "aria-label": "Answer choices" }, q.options.map((opt, i) => {
+        mock && h("span", { class: "meta" }, `Heard ${Math.min(s.playsUsed, MAX_PLAYS)} of ${MAX_PLAYS} times`),
+        !mock && !s.revealed && h("button", { class: "btn skip", id: "skip", onclick: skip, title: "Skip this question (S)" }, "Skip question")),
+      h("div", { class: "options" + (q.pictures ? " pics" : ""), role: "group", "aria-label": "Answer choices" }, q.options.map((opt, i) => {
         let cls = "opt";
         if (s.revealed) cls += i === q.correct ? " right" : s.selected === i ? " wrong" : " dimmed";
         else if (s.selected === i) cls += " sel";
         return h("button", { class: cls, "aria-pressed": String(s.selected === i), disabled: s.revealed, onclick: () => select(i) },
-          h("span", { class: "num" }, i < 9 ? String(i + 1) : ""), h("span", { class: "txt" }, opt));
+          h("span", { class: "num" }, i < 9 ? String(i + 1) : ""),
+          q.pictures && q.pictures[i] ? h("span", { class: "pic" }, AT.notation.rhythmSVG(q.pictures[i], opt), h("span", { class: "txt" }, opt)) : h("span", { class: "txt" }, opt));
       })),
       mock && !s.live
         ? h("div", { class: "actions" },
@@ -476,7 +489,8 @@
             h("div", { class: "actions" },
               h("button", { class: "btn primary", id: "next", onclick: advance },
                 mock && last ? "See results" : s.limit && s.answered >= s.limit ? "Finish" : "Next question"))),
-      h("p", { class: "keys" }, h("kbd", null, "R"), " replay", h("kbd", null, "1-9"), " choose", h("kbd", null, "Enter"), mock && !s.live ? " lock in" : " continue"));
+      h("p", { class: "keys" }, h("kbd", null, "R"), " replay", h("kbd", null, "1-9"), " choose", h("kbd", null, "Enter"), mock && !s.live ? " lock in" : " continue",
+        !mock && [h("kbd", null, "S"), " skip"]));
   }
 
   function resultsScreen() {
@@ -508,6 +522,7 @@
             h("p", null, m.q.prompt),
             h("p", { class: "no" }, m.chosen == null ? "You did not answer" : `You answered ${m.q.options[m.chosen]}`),
             h("p", { class: "ok" }, `Correct answer: ${m.q.options[m.q.correct]}`),
+            m.q.pictures && h("div", { class: "pic-review" }, AT.notation.rhythmSVG(m.q.pictures[m.q.correct], m.q.options[m.q.correct])),
             h("p", null, m.q.explanation),
             h("button", { class: "btn small", onclick: () => playEvents(m.q.events) }, "Hear it again"))))),
       h("div", { class: "actions" },
@@ -854,6 +869,7 @@
     const onButton = e.target && e.target.tagName === "BUTTON";
     const onOption = onButton && e.target.classList.contains("opt");
     if (e.key === "r" || e.key === "R") { e.preventDefault(); replay(); }
+    else if (e.key === "s" || e.key === "S") { e.preventDefault(); skip(); }
     else if (/^[1-9]$/.test(e.key)) { select(Number(e.key) - 1); }
     else if (e.key === "Enter") {
       const chosen = onOption && e.target.getAttribute("aria-pressed") === "true";

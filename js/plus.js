@@ -107,8 +107,8 @@
     P.updateExtra((e) => {
       const hit = e.mistakes.find((m) => m.id === id);
       if (hit) { hit.misses++; hit.when = Date.now(); return; }
-      const { category, prompt, options, correct, events, explanation, inst, outcome } = q;
-      e.mistakes.unshift({ id, when: Date.now(), misses: 1, q: { category, prompt, options, correct, events, explanation, inst, outcome, ready: true } });
+      const { category, prompt, options, pictures, correct, events, explanation, inst, outcome } = q;
+      e.mistakes.unshift({ id, when: Date.now(), misses: 1, q: { category, prompt, options, pictures, correct, events, explanation, inst, outcome, ready: true } });
       if (e.mistakes.length > 80) e.mistakes.length = 80;
     });
   }

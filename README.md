@@ -28,7 +28,9 @@ Sounds are a modelled piano and a small drum kit (kick, snare, hi-hat, rim, tom)
 
 Also included: a **crib sheet** page (from the one-page revision sheet), the term's key dates,. Progress is saved in your own browser (localStorage), and nothing is sent anywhere.
 
-Keyboard: `R` replay, `1`-`9` choose an answer, `Enter` continue (or lock in, in exam conditions).
+Keyboard: `R` replay, `1`-`9` choose an answer, `S` skip (practice only), `Enter` continue (or lock in, in exam conditions).
+
+**Teaching aids:** practice questions have a **Skip question** button that moves on without marking the question, so you can pick sounds to discuss in class. It never appears in the mock exam or group tests. Rhythm answers are shown as notation pictures (one bar of 4/4) as well as by name, in practice, the mock exam and the results review.
 
 ## What's new in v2
 
@@ -95,6 +97,7 @@ python3 -m http.server 8000
 | `js/theory.js` | Intervals, scales, chords and keys |
 | `js/synth.js` | Web Audio sound engine: instruments, live level meter |
 | `js/ex_pitch.js`, `js/ex_rhythm.js` | Question generators for Outcomes 1 to 3 |
+| `js/notation.js` | Draws rhythm answers as notation (SVG) |
 | `js/exercises.js` | Outcomes, pass marks, topics and the mock paper builder |
 | `js/crib.js` | Crib sheet content |
 | `js/progress.js` | Saved results and settings |
