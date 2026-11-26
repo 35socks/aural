@@ -9,7 +9,7 @@
       cards: [
         { name: "Test yourself before you read the answer",
           body: "Hearing a sound and guessing first is what builds memory. Reading the answer straight away feels easier but sticks far less. In Practice, commit to a choice before you press continue, and say why.",
-          tip: "Keep \"Show answers as I go\" off in mock exams so you train the same way the paper works." },
+          tip: "Practice works like the test: answers appear only at the end, so commit to each choice." },
         { name: "Little and often beats one long session",
           body: "Ten minutes a day for a week beats an hour the night before. Sleep is when your ear stores what you practised. Do your weakest topic first, while you are fresh.",
           tip: "Check the Progress page and pick the topic with the lowest bar." },
@@ -25,22 +25,6 @@
 
     { title: "Intervals", outcome: 1,
       cards: [
-        { name: "Anchor each interval to a tune you know",
-          body: "Do not try to \"measure\" the gap. Match the first two notes to the start of a song. One song per interval is enough; pick songs you know best, not mine.",
-          list: [
-            "Major 2nd: Happy Birthday (\"Hap-py\" is the same note, then \"Birth-day\" steps up), or Do-Re-Mi",
-            "Major 3rd: When the Saints Go Marching In (\"Oh when the\")",
-            "Perfect 4th: Here Comes the Bride",
-            "Perfect 5th: Twinkle Twinkle Little Star (first two notes)",
-            "Major 6th: My Bonnie Lies Over the Ocean",
-            "Major 7th: one step short of the octave, so it feels like it wants to go up to the top",
-            "Octave: Somewhere Over the Rainbow (\"Some-where\")",
-          ],
-          hear: [
-            ["Major 2nd", M(60, 62)], ["Major 3rd", M(60, 64)], ["Perfect 4th", M(60, 65)], ["Perfect 5th", M(60, 67)],
-            ["Major 6th", M(60, 69)], ["Major 7th", M(60, 71)], ["Octave", M(60, 72)],
-          ],
-          tip: "Learn only 2nd, 3rd, 4th and 5th first. The rest can be found from those." },
         { name: "The semitone ladder: 0 2 4 5 7 9 11 12",
           body: "Every interval in this unit is a step of the major scale from the bottom note. Learn the numbers 0, 2, 4, 5, 7, 9, 11, 12 as one chant, like a phone number. Each one is the gap in semitones.",
           tip: "The gaps between the numbers are 2 2 1 2 2 2 1, the same as T T S T T T S." },
@@ -96,17 +80,17 @@
     { title: "Chord numbers and progressions", outcome: 2,
       cards: [
         { name: "Capitals are major, lower case are minor",
-          body: "Remember the majors as 1, 4, 5 and the minors as 2, 3, 6. Say it as \"145 are loud, 236 are quiet\". In C: C F G are major, Dm Em Am are minor.",
-          list: ["I = C, IV = F, V = G (major)", "ii = Dm, iii = Em, vi = Am (minor)"], tip: "" },
+          body: "Remember the majors as 1, 4, 5 and the minors as 2, 3, 6. Say it as \"145 are loud, 236 are quiet\". The test uses only these numerals.",
+          list: ["I, IV, V: major", "ii, iii, vi: minor"], tip: "" },
         { name: "Follow the bass, not the whole chord",
           body: "The lowest note usually names the chord root. Sing the bass line of the progression, then match each note to a number in the key. Three or four notes are far easier to hold in your head than three or four chords.",
           tip: "Find the key first: the first chord is usually I." },
         { name: "Learn progressions as tunes, not lists",
           body: "Chant them with the feeling they give: I - IV - V is home, away, tension. I - V - vi - IV is the four-chord pop loop. ii - V - I is the jazz \"pull home\". Once you know these three shapes, most questions are one of them.",
-          list: ["I - IV - V: C F G", "I - V - vi - IV: C G Am F", "ii - V - I: Dm G C"],
+          list: ["I - IV - V", "I - V - vi - IV", "ii - V - I"],
           tip: "Notice that V almost always wants to go to I. If the last chord sounds like a landing, it is I." },
       ],
-      recall: [["Which numbers are major?", "I, IV, V"], ["Which numbers are minor?", "ii, iii, vi"], ["Chords in I - V - vi - IV in C?", "C G Am F"]] },
+      recall: [["Which numbers are major?", "I, IV, V"], ["Which numbers are minor?", "ii, iii, vi"], ["Which progression is the four-chord pop loop?", "I - V - vi - IV"]] },
 
     { title: "Rhythm and time signatures", outcome: 3,
       cards: [
@@ -123,6 +107,33 @@
       ],
       recall: [["How many main beats in 6/8?", "2"], ["How many main beats in 9/8?", "3"], ["A dot adds how much?", "Half the note's value"]] },
   ];
+
+  /* Sound hooks: something familiar to tie each interval and progression to.
+     `tune` is [midi notes, seconds between them] and is only given for old, public domain melodies. */
+  AT.hooks = {
+    intervals: [
+      { name: "Unison", semis: 0, hook: "Happy Birthday", cue: "\"Hap-py\": the same note twice.", tune: [[67, 67, 69, 67, 72, 71], 0.4] },
+      { name: "Major 2nd", semis: 2, hook: "Fr\u00e8re Jacques", cue: "\"Fr\u00e8-re\": one small step up.", tune: [[60, 62, 64, 60], 0.45] },
+      { name: "Major 3rd", semis: 4, hook: "When the Saints Go Marching In", cue: "\"Oh when\": a bright skip.", tune: [[60, 64, 65, 67], 0.45] },
+      { name: "Perfect 4th", semis: 5, hook: "Here Comes the Bride", cue: "\"Here comes\": strong, like an announcement.", tune: [[55, 60, 60, 60], 0.5] },
+      { name: "Perfect 5th", semis: 7, hook: "Twinkle Twinkle Little Star", cue: "The jump from the first \"twinkle\" to the second: wide and open.", tune: [[60, 60, 67, 67, 69, 69, 67], 0.4] },
+      { name: "Major 6th", semis: 9, hook: "My Bonnie Lies Over the Ocean", cue: "\"My Bon-\": a warm, wide leap.", tune: [[55, 64, 62, 60, 62, 60, 57, 55], 0.4] },
+      { name: "Major 7th", semis: 11, hook: "Just short of Somewhere Over the Rainbow", cue: "Tense and itching to rise one more semitone to the octave." },
+      { name: "Octave", semis: 12, hook: "Somewhere Over the Rainbow", cue: "\"Some-where\": a big leap to the same note, higher." },
+    ],
+    progressions: [
+      { chords: ["I", "IV", "V"], hook: "Twist and Shout", cue: "Home, away, tension. It stops before getting home." },
+      { chords: ["I", "V", "IV"], hook: "Baba O'Riley (The Who)", cue: "Home, tension, then it relaxes back a step." },
+      { chords: ["ii", "V", "I"], hook: "Autumn Leaves (opening)", cue: "Starts minor, pulls, lands home." },
+      { chords: ["I", "IV", "V", "I"], hook: "The end of a hymn or anthem", cue: "A complete journey: home, away, tension, home." },
+      { chords: ["I", "V", "vi", "IV"], hook: "Let It Be (The Beatles)", cue: "The pop loop: the sad chord comes third." },
+      { chords: ["I", "vi", "IV", "V"], hook: "Stand By Me (Ben E. King)", cue: "The 1950s loop: the sad chord comes second." },
+      { chords: ["vi", "IV", "I", "V"], hook: "Zombie (The Cranberries)", cue: "Starts sad, on a minor chord." },
+      { chords: ["I", "vi", "ii", "V"], hook: "Blue Moon", cue: "Two minor chords in the middle, ends wanting home." },
+      { chords: ["I", "iii", "IV", "V"], hook: "Say: home, soft, lift, wait", cue: "The second chord is a gentle minor, then it climbs." },
+      { chords: ["I", "IV", "vi", "V"], hook: "Say: home, away, sad, wait", cue: "The minor chord comes third, then V leaves it hanging." },
+    ],
+  };
 
   AT.learningIntro = {
     title: "Learning methods",

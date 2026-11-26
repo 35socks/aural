@@ -75,7 +75,11 @@
   ];
 
   const toasts = [];
+  // Pop-ups wait until a set is over: "5 right in a row" would give answers away.
+  const held = [];
+  function flushToasts() { held.splice(0).forEach(([title, text]) => toast(title, text)); }
   function toast(title, text) {
+    if (ui() && ui().state.screen === "question") { held.push([title, text]); return; }
     let box = document.getElementById("toasts");
     if (!box) {
       box = document.createElement("div");
@@ -161,47 +165,49 @@
     return X.generate(k);
   }
 
-  function startSmart(keys, limit, label) {
-    ui().startSession("practice", null, [smartNext(keys)]);
-    const s = ui().state.session;
-    s.next = () => smartNext(keys);
-    s.limit = limit || 0;
-    s.label = label || "Smart practice";
+  /** A fixed set of questions chosen the smart way, using each saved mistake at most once. */
+  function smartSet(keys, count) {
+    const used = new Set();
+    return Array.from({ length: count }, () => {
+      let q = smartNext(keys);
+      if (q._bank && used.has(q._bank)) q = X.generate(smartKey(poolFor(keys)));
+      if (q._bank) used.add(q._bank);
+      return q;
+    });
+  }
+
+  function startSmart(keys, count, label) {
+    const n = count || 10, name = label || "Smart practice";
+    ui().startDrill(smartSet(keys, n), name, () => startSmart(keys, n, name));
   }
 
   function startReview() {
     const queue = R.shuffle(mistakes().map((m) => ({ ...m.q, _bank: m.id })));
-    if (!queue.length) return;
-    ui().startSession("practice", null, [queue.shift()]);
-    const s = ui().state.session;
-    s.next = () => queue.shift() || null;
-    s.limit = 0;
-    s.label = "Mistakes review";
-    s.bankTotal = queue.length + 1;
+    if (queue.length) ui().startDrill(queue, "Mistakes review", () => (mistakes().length ? startReview() : startSmart()));
   }
 
   function startDaily() {
-    startSmart(null, 10, "Daily challenge");
-    ui().state.session.daily = true;
+    ui().startDrill(smartSet(null, 10), "Daily challenge", startDaily, { daily: true });
   }
 
-  /** End of a finite drill: show a summary. */
-  function finishDrill(s) {
+  /** The end of a practice set: score first, then the answers. */
+  function finishDrill(s, result) {
     S.stop();
     const ui_ = ui();
-    const wasDaily = !!s.daily;
-    if (wasDaily) {
-      const perfect = s.correct === s.answered && s.answered >= 10;
+    // The daily challenge only counts if every question was answered.
+    const daily = !!s.daily && s.answered >= result.total;
+    if (daily) {
       P.updateExtra((e) => {
         if (e.daily !== dayKey()) e.xp += 50;
         e.daily = dayKey();
       });
-      checkAchievements({ perfect, streak: s.best });
     }
-    ui_.state.drill = { label: s.label || "Practice", correct: s.correct, answered: s.answered, best: s.best, daily: wasDaily };
+    ui_.state.drill = { label: s.label, correct: s.correct, best: s.best, daily, restart: s.restart, ...result };
     ui_.state.session = null;
     ui_.state.screen = "drill";
     ui_.render();
+    checkAchievements({ perfect: daily && s.correct === result.total, streak: s.best });
+    flushToasts();
     g.scrollTo(0, 0);
   }
 
@@ -302,7 +308,7 @@
           h("div", { class: "bar-meter met" }, h("i", { style: `width:${Math.round((into * 100) / span)}%` }))),
         stat("Mistakes bank", String(bank), bank ? "questions waiting for a second go" : "nothing to review")),
       h("div", { class: "dcta" },
-        h("button", { class: "btn primary", onclick: () => startSmart(null, 0) }, "Smart practice"),
+        h("button", { class: "btn primary", onclick: () => startSmart() }, "Smart practice · 10 questions"),
         h("button", { class: "btn", onclick: startDaily }, dailyDone ? "Daily challenge (done, go again)" : "Daily challenge · 10 questions"),
         h("button", { class: "btn", disabled: !bank, onclick: startReview }, bank ? `Review ${plural(bank, "mistake")}` : "No mistakes to review")),
       h("p", { class: "note dwhy" }, weak.length
@@ -324,7 +330,7 @@
       h("div", { class: "row", style: "margin-top:16px" },
         h("label", { class: "lbl" }, h("span", { class: "meta" }, "Questions"),
           h("select", { class: "field", onchange: (e) => { build.count = Number(e.target.value); } },
-            [5, 10, 20, 30, 0].map((n) => h("option", { value: n, selected: n === build.count }, n ? String(n) : "Keep going")))),
+            [5, 10, 20, 30].map((n) => h("option", { value: n, selected: n === build.count }, String(n))))),
         h("button", { class: "btn primary", disabled: !build.keys.length, onclick: () => startSmart(build.keys.slice(), build.count, "Custom session") }, "Start session")));
   }
 
@@ -339,7 +345,7 @@
           h("span", { class: "pc" }, c.pc),
           h("div", { class: "topic-text" }, h("h4", null, c.name), h("p", null, c.blurb)),
           h("div", { class: "topic-score" }, ui().meter(st.percent || 0, `${c.name} accuracy`), h("span", null, st.attempts ? `${st.percent}% of ${st.attempts}` : "Not tried")),
-          h("button", { class: "btn", onclick: () => ui().startSession("practice", c.key, [X.generate(c.key)]) }, "Practise"));
+          h("button", { class: "btn", onclick: () => ui().startPractice(c.key) }, "Practise"));
       })));
   }
 
@@ -347,19 +353,21 @@
   const screens = {};
 
   screens.drill = () => {
-    const d = ui().state.drill || { label: "Practice", correct: 0, answered: 0, best: 0 };
-    const pct = d.answered ? P.pct(d.correct, d.answered) : 0;
+    const d = ui().state.drill || { label: "Practice", correct: 0, total: 0, best: 0, missed: [] };
+    const pct = d.total ? P.pct(d.correct, d.total) : 0;
     return h("div", { class: "panel results" },
       h("p", { class: "meta" }, d.label),
       h("h2", null, pct >= 90 ? "Excellent listening" : pct >= 70 ? "Solid work" : "Keep going, it is working"),
+      d.timedOut && h("p", { class: "note" }, "Time ran out. Unanswered questions scored nothing."),
       h("div", { class: "marks" },
-        h("div", null, h("dt", null, "Score"), h("dd", null, String(d.correct), h("span", null, `/${d.answered}`))),
+        h("div", null, h("dt", null, "Score"), h("dd", null, String(d.correct), h("span", null, `/${d.total}`))),
         h("div", null, h("dt", null, "Accuracy"), h("dd", null, `${pct}%`)),
         h("div", null, h("dt", null, "Best streak"), h("dd", null, String(d.best)))),
       d.daily && h("p", { class: "advice" }, "Daily challenge complete. +50 XP the first time each day."),
       mistakes().length > 0 && h("p", { class: "advice" }, `You have ${plural(mistakes().length, "question")} in the mistakes bank. Fixing those is the quickest way to improve.`),
+      ui().missedList(d.missed),
       h("div", { class: "actions" },
-        h("button", { class: "btn primary", onclick: () => startSmart(null, 0) }, "Smart practice"),
+        d.restart && h("button", { class: "btn primary", onclick: d.restart }, "Practise again"),
         mistakes().length > 0 && h("button", { class: "btn", onclick: startReview }, "Review mistakes"),
         h("button", { class: "btn", onclick: () => ui().go("home") }, "Back to practice")));
   };
@@ -379,6 +387,7 @@
       bank.map((m) => h("details", null,
         h("summary", null, h("span", { class: "meta" }, X.byKey(m.q.category).name), h("span", null, m.q.prompt.length > 70 ? m.q.prompt.slice(0, 70) + "…" : m.q.prompt), h("span", { class: "meta" }, `missed ${m.misses}×`)),
         h("p", { class: "ok" }, `Answer: ${m.q.options[m.q.correct]}`),
+        m.q.pictures && h("div", { class: "pic-review" }, AT.notation.rhythmSVG(m.q.pictures[m.q.correct], m.q.options[m.q.correct])),
         h("p", null, m.q.explanation),
         h("div", { class: "actions", style: "margin-top:0" },
           h("button", { class: "btn small", onclick: () => { S.play(m.q.events); } }, "Hear it"),
@@ -505,15 +514,14 @@
       h("select", { class: "field", "aria-label": label, onchange: (e) => set(key, num ? Number(e.target.value) : e.target.value) },
         opts.map(([v, t]) => h("option", { value: v, selected: String(P.setting(key)) === String(v) }, t))));
     return h("div", { class: "settings-page" },
-      h("div", { class: "lead" }, h("h2", null, "Settings"), h("p", null, "Everything is saved in this browser. Nothing is sent anywhere.")),
+      h("div", { class: "lead" }, h("h2", null, "Settings"), h("p", null, "Settings are saved in this browser. Progress stays here too, unless you sign in to an account.")),
       h("section", { class: "panel" },
         h("h3", null, "Sound and display"),
         h("div", { class: "srow" }, h("div", null, h("h4", null, "Volume"), h("p", { class: "note" }, "Applies to every sound in the app.")),
           h("input", { type: "range", min: 0.1, max: 1, step: 0.05, value: P.setting("volume"), "aria-label": "Volume", oninput: (e) => { P.setSetting("volume", Number(e.target.value)); S.setVolume(Number(e.target.value)); },
             onchange: () => S.tap(AT.theory.freq(69), 0.6, 0.8) })),
         sel("Theme", "theme", [["auto", "Match my device"], ["dark", "Dark"], ["light", "Light"]]),
-        sw("Animations", "motion", "Turn off to remove motion effects."),
-        sw("Show answers as I go in mock exams", "live", "Off is the real exam: no marks until the end.")),
+        sw("Animations", "motion", "Turn off to remove motion effects.")),
       h("section", { class: "panel", style: "margin-top:24px" },
         h("h3", null, "Practice"),
         sel("Daily goal", "goal", [[10, "10 questions"], [20, "20 questions"], [30, "30 questions"], [50, "50 questions"], [100, "100 questions"]], "Counts toward your streak and the Today bar.", true)),
@@ -532,7 +540,7 @@
         h("p", { class: "note", style: "margin-top:12px" }, "Moving to another device or browser? Download a backup here and restore it there.")),
       h("section", { class: "panel", style: "margin-top:24px" },
         h("h3", null, "Keyboard shortcuts"),
-        h("table", { class: "t" }, h("tbody", null, [["R", "Replay the sound"], ["1-9", "Choose an answer"], ["Enter", "Continue or lock in"], ["A W S E D F …", "Play the piano on the Tools page"]].map(([k, v]) => h("tr", null, h("td", null, h("kbd", { style: "margin:0" }, k)), h("td", null, v)))))));
+        h("table", { class: "t" }, h("tbody", null, [["R", "Replay the sound"], ["1-9", "Choose an answer"], ["Enter", "Lock in"], ["A W S E D F …", "Play the piano on the Tools page"]].map(([k, v]) => h("tr", null, h("td", null, h("kbd", { style: "margin:0" }, k)), h("td", null, v)))))));
   };
 
   // ---- insights (added to the Progress page) ----
@@ -560,7 +568,7 @@
       h("h3", { class: "section-title" }, "Focus next"),
       h("ul", { class: "focus" }, weak.map((w) => h("li", null,
         h("span", null, w.c.name, h("span", { class: "meta" }, w.st.attempts ? ` ${w.st.percent}% of ${w.st.attempts}` : " not tried")),
-        h("button", { class: "btn small", onclick: () => ui().startSession("practice", w.c.key, [X.generate(w.c.key)]) }, "Practise")))),
+        h("button", { class: "btn small", onclick: () => ui().startPractice(w.c.key) }, "Practise")))),
       achievementsPanel());
   }
 
@@ -571,7 +579,7 @@
   g.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
 
   AT.extraScreens = screens;
-  AT.plus = { onAnswer, dashboard, builder, extensionSection, insights, finishDrill, startReview, checkAchievements, applyTheme, mistakes };
+  AT.plus = { flushToasts, onAnswer, dashboard, builder, extensionSection, insights, finishDrill, startReview, checkAchievements, applyTheme, mistakes };
 
   if ("serviceWorker" in navigator && g.location.protocol.startsWith("http")) {
     const base = g.location.pathname.replace(/(groups|learning)\/$/, "");

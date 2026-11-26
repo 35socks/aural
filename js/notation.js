@@ -1,61 +1,98 @@
-/* Draws a one-bar rhythm as notation on a single-line rhythm stave (SVG).
-   Accepts a list of note lengths in crotchet beats (0.5 quaver, 1 crotchet, 1.5 dotted crotchet,
-   2 minim, 3 dotted minim), taken as 4/4, or { lens, time } with time "4/4", "3/4", "6/8" or "9/8".
-   Quavers in the same beat are beamed: pairs in simple time, up to three in compound time. */
+/* Draws a one-bar rhythm as written music: time signature, notes, dots, flags, beams and bar line. */
 (function (g) {
   const AT = g.AT;
-  const W = 260, H = 72, LINE = 46, STEM = 30;
-  const X0 = 46; // first note x
+  const NS = "http://www.w3.org/2000/svg";
+  const LINE = 40, TOP = 10, HEIGHT = 58;
 
-  function rhythmSVG(pic, label) {
-    const pattern = Array.isArray(pic) ? pic : pic.lens;
-    const time = (!Array.isArray(pic) && pic.time) || "4/4";
-    const [top, bottom] = time.split("/");
-    const beatLen = bottom === "8" ? 1.5 : 1;
+  // Note lengths are in crotchet beats. `flags` is also the number of beams.
+  const SHAPES = {
+    0.25: { flags: 2 }, 0.5: { flags: 1 }, 0.75: { flags: 1, dot: true }, 1: {}, 1.5: { dot: true },
+    2: { open: true }, 3: { open: true, dot: true },
+  };
 
-    const parts = [];
-    parts.push(`<line x1="6" y1="${LINE}" x2="${W - 6}" y2="${LINE}" stroke="currentColor" stroke-width="1.2"/>`);
-    parts.push(`<text x="20" y="${LINE - 4}" font-family="Georgia,serif" font-weight="700" font-size="20" text-anchor="middle" fill="currentColor">${top}</text>`);
-    parts.push(`<text x="20" y="${LINE + 18}" font-family="Georgia,serif" font-weight="700" font-size="20" text-anchor="middle" fill="currentColor">${bottom}</text>`);
-    parts.push(`<line x1="${W - 6}" y1="${LINE - 14}" x2="${W - 6}" y2="${LINE + 14}" stroke="currentColor" stroke-width="1.4"/>`);
-
-    // engraving-style spacing: longer notes get more room, but not in strict proportion
-    const room = (len) => 1 + 1.4 * Math.sqrt(len);
-    const totalRoom = pattern.reduce((n, len) => n + room(len), 0);
-    const scale = (W - 18 - X0) / totalRoom;
-    const notes = [];
-    let pos = 0, x = X0;
-    for (const len of pattern) { notes.push({ len, pos, x, beat: Math.floor(pos / beatLen + 1e-9) }); pos += len; x += room(len) * scale; }
-
-    // beam groups: runs of quavers inside one beat
-    const groups = [];
-    for (let i = 0; i < notes.length; i++) {
-      if (notes[i].len !== 0.5) continue;
-      const run = [notes[i]];
-      while (notes[i + 1] && notes[i + 1].len === 0.5 && notes[i + 1].beat === notes[i].beat) run.push(notes[++i]);
-      if (run.length > 1) { run.forEach((n) => { n.beamed = true; }); groups.push(run); }
-    }
-
-    const stemTop = LINE - STEM;
-    for (const n of notes) {
-      const hollow = n.len >= 2;
-      const hx = n.x, sx = hx + 5.2;
-      parts.push(`<ellipse cx="${hx}" cy="${LINE}" rx="6" ry="4.3" transform="rotate(-20 ${hx} ${LINE})" ` +
-        (hollow ? `fill="none" stroke="currentColor" stroke-width="1.8"` : `fill="currentColor"`) + "/>");
-      parts.push(`<line x1="${sx}" y1="${LINE - 1}" x2="${sx}" y2="${stemTop}" stroke="currentColor" stroke-width="1.5"/>`);
-      if (n.len === 1.5 || n.len === 3) parts.push(`<circle cx="${hx + 11}" cy="${LINE - 4}" r="2" fill="currentColor"/>`);
-      if (n.len === 0.5 && !n.beamed) parts.push(`<path d="M${sx} ${stemTop} c 1 6 10 9 7 19 c 1 -7 -4 -10 -7 -12 z" fill="currentColor"/>`);
-    }
-    for (const run of groups) {
-      const a = run[0].x + 5.2, b = run[run.length - 1].x + 5.2;
-      parts.push(`<rect x="${a - 0.75}" y="${stemTop}" width="${b - a + 1.5}" height="4.5" fill="currentColor"/>`);
-    }
-
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" class="rhythm-pic" role="img" aria-label="${(label || "rhythm") + " in " + time}">${parts.join("")}</svg>`;
-    const t = document.createElement("template");
-    t.innerHTML = svg;
-    return t.content.firstChild;
+  function mk(tag, attrs) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
   }
 
-  AT.notation = { rhythmSVG };
+  /** Splits note indexes into beam groups: short notes that start inside the same main beat. */
+  function beamGroups(pattern, beat) {
+    const groups = [];
+    let t = 0, current = null, currentBeat = -1;
+    pattern.forEach((len, i) => {
+      const inBeat = Math.floor(t / beat + 1e-6);
+      if (len < 1) {
+        if (!current || inBeat !== currentBeat) { current = []; groups.push(current); currentBeat = inBeat; }
+        current.push(i);
+      } else current = null;
+      t += len;
+    });
+    return groups;
+  }
+
+  /** `metre` is a label such as "6/8"; `beat` is the main beat in crotchets (1, or 1.5 in compound time). */
+  function rhythm(metre, beat, pattern) {
+    const xs = [];
+    let x = 46;
+    for (const len of pattern) { xs.push(x); x += 14 + 24 * Math.sqrt(len); }
+    const width = Math.round(x + 8);
+    const svg = mk("svg", { viewBox: `0 0 ${width} ${HEIGHT}`, width, height: HEIGHT, class: "notation", "aria-hidden": "true", focusable: "false" });
+    const add = (tag, attrs) => svg.appendChild(mk(tag, attrs));
+    const line = (x1, y1, x2, y2, w) => add("line", { x1, y1, x2, y2, stroke: "currentColor", "stroke-width": w });
+
+    line(2, LINE, width - 3, LINE, 1);
+    metre.split("/").forEach((digit, i) => {
+      const t = add("text", { x: 18, y: i ? LINE + 15 : LINE - 2, "text-anchor": "middle", class: "timesig" });
+      t.textContent = digit;
+    });
+    line(width - 3, LINE - 14, width - 3, LINE + 14, 1.5);
+
+    const groups = beamGroups(pattern, beat);
+    const beamed = new Set(groups.filter((grp) => grp.length > 1).flat());
+    const stemX = (i) => xs[i] + 5.4;
+
+    pattern.forEach((len, i) => {
+      const s = SHAPES[len];
+      add("ellipse", { cx: xs[i], cy: LINE, rx: 6, ry: 4.4, transform: `rotate(-20 ${xs[i]} ${LINE})`,
+        stroke: "currentColor", "stroke-width": s.open ? 2 : 1, fill: s.open ? "none" : "currentColor" });
+      line(stemX(i), LINE - 2, stemX(i), TOP, 1.6);
+      if (s.dot) add("circle", { cx: xs[i] + 11, cy: LINE - 4, r: 2.1, fill: "currentColor" });
+      if (!beamed.has(i)) {
+        for (let f = 0; f < (s.flags || 0); f++) {
+          const y = TOP + f * 7;
+          add("path", { d: `M${stemX(i)} ${y} c7 4 11 8 8 17`, fill: "none", stroke: "currentColor", "stroke-width": 2 });
+        }
+      }
+    });
+
+    const beam = (x1, x2, y) => add("rect", { x: x1 - 0.8, y, width: x2 - x1 + 1.6, height: 4, fill: "currentColor", class: "beam" });
+    for (const grp of groups.filter((x) => x.length > 1)) {
+      beam(stemX(grp[0]), stemX(grp[grp.length - 1]), TOP);
+      // Second beam for semiquavers: joined to a neighbouring semiquaver, otherwise a short stub.
+      grp.forEach((i, k) => {
+        if (SHAPES[pattern[i]].flags !== 2) return;
+        const prev = grp[k - 1], next = grp[k + 1];
+        if (next !== undefined && SHAPES[pattern[next]].flags === 2) beam(stemX(i), stemX(next), TOP + 7);
+        else if (prev !== undefined && SHAPES[pattern[prev]].flags === 2) return;
+        else if (prev !== undefined) beam(stemX(i) - 9, stemX(i), TOP + 7);
+        else beam(stemX(i), stemX(i) + 9, TOP + 7);
+      });
+    }
+    return svg;
+  }
+
+  /** `pic` is { lens, time }, or a bare list of note lengths in 4/4 (older saved mistakes). */
+  function rhythmSVG(pic, label) {
+    const lens = Array.isArray(pic) ? pic : pic.lens;
+    const time = (!Array.isArray(pic) && pic.time) || "4/4";
+    const svg = rhythm(time, time.endsWith("/8") ? 1.5 : 1, lens);
+    svg.removeAttribute("aria-hidden");
+    svg.setAttribute("role", "img");
+    // Older saved labels do not start with the time signature.
+    svg.setAttribute("aria-label", !label ? `Rhythm in ${time}` : label.startsWith(time) ? label : `${time}: ${label}`);
+    return svg;
+  }
+
+  AT.notation = { rhythm, beamGroups, rhythmSVG };
 })(typeof window !== "undefined" ? window : globalThis);

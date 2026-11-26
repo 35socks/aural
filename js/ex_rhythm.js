@@ -42,89 +42,100 @@
     };
   }
 
-  // One-bar rhythms as note lengths in crotchet beats (quaver 0.5, dotted crotchet 1.5).
-  // Simple time beats are crotchets; compound time beats are dotted crotchets (three quavers).
-  const LEN_NAME = { 0.5: "quaver", 1: "crotchet", 1.5: "dotted crotchet", 2: "minim", 3: "dotted minim" };
+  // One-bar rhythms, as note lengths in crotchet beats. `beat` is the main beat; `subs` is how it divides.
   const RHYTHM_METRES = {
-    "4/4": { beats: 4, beat: 1, weight: 4, patterns: [
+    "4/4": { beat: 1, beats: 4, subs: 2, confuser: "3/4", patterns: [
       [1, 1, 1, 1], [1.5, 0.5, 1, 1], [1, 1, 0.5, 0.5, 1], [2, 1, 1], [1, 0.5, 0.5, 1, 1],
-      [1.5, 0.5, 1.5, 0.5], [3, 1], [0.5, 0.5, 0.5, 0.5, 1, 1], [1, 1.5, 0.5, 1], [1.5, 0.5, 2]] },
-    "3/4": { beats: 3, beat: 1, weight: 2, patterns: [
-      [1, 1, 1], [2, 1], [1, 2], [3], [1.5, 0.5, 1], [1, 0.5, 0.5, 1],
-      [0.5, 0.5, 1, 1], [1, 1.5, 0.5], [0.5, 0.5, 0.5, 0.5, 1], [1.5, 0.5, 0.5, 0.5]] },
-    "6/8": { beats: 2, beat: 1.5, weight: 2, patterns: [
-      [1.5, 1.5], [1, 0.5, 1, 0.5], [0.5, 0.5, 0.5, 1.5], [1.5, 0.5, 0.5, 0.5], [1, 0.5, 1.5],
-      [0.5, 0.5, 0.5, 0.5, 0.5, 0.5], [3], [1.5, 1, 0.5], [0.5, 0.5, 0.5, 1, 0.5]] },
-    "9/8": { beats: 3, beat: 1.5, weight: 2, patterns: [
-      [1.5, 1.5, 1.5], [1, 0.5, 1, 0.5, 1, 0.5], [3, 1.5], [1.5, 1, 0.5, 1.5], [0.5, 0.5, 0.5, 1.5, 1.5],
-      [1.5, 0.5, 0.5, 0.5, 1.5], [1, 0.5, 1.5, 1, 0.5], [1.5, 1.5, 0.5, 0.5, 0.5]] },
+      [1.5, 0.5, 1.5, 0.5], [3, 1], [0.5, 0.5, 0.5, 0.5, 1, 1], [1, 1.5, 0.5, 1], [1.5, 0.5, 2], [0.75, 0.25, 1, 2],
+    ] },
+    "3/4": { beat: 1, beats: 3, subs: 2, confuser: "6/8", patterns: [
+      [1, 1, 1], [1.5, 0.5, 1], [2, 1], [1, 2], [0.5, 0.5, 1, 1], [1, 0.5, 0.5, 1],
+      [0.75, 0.25, 1, 1], [0.5, 0.5, 0.5, 0.5, 1], [0.5, 0.5, 0.5, 0.5, 0.5, 0.5], [1, 1.5, 0.5],
+    ] },
+    "6/8": { beat: 1.5, beats: 2, subs: 3, confuser: "3/4", patterns: [
+      [0.5, 0.5, 0.5, 0.5, 0.5, 0.5], [1, 0.5, 1, 0.5], [1.5, 1.5], [1.5, 0.5, 0.5, 0.5], [0.5, 0.5, 0.5, 1.5],
+      [0.5, 0.5, 0.5, 1, 0.5], [0.75, 0.25, 0.5, 1.5], [1, 0.5, 1.5], [1.5, 1, 0.5],
+    ] },
+    "9/8": { beat: 1.5, beats: 3, subs: 3, confuser: "6/8", patterns: [
+      [1.5, 1.5, 1.5], [1, 0.5, 1, 0.5, 1.5], [0.5, 0.5, 0.5, 1.5, 1.5], [1.5, 0.5, 0.5, 0.5, 1, 0.5],
+      [3, 1.5], [1, 0.5, 0.5, 0.5, 0.5, 1.5], [0.75, 0.25, 0.5, 1.5, 1, 0.5], [1.5, 1, 0.5, 1.5],
+    ] },
   };
-  const dotted = (p) => p.some((n) => n === 1.5 || n === 3);
-
-  /** Names a rhythm, grouping quavers that share a beat ("2 quavers", "3 quavers"). */
-  function describe(p, beatLen) {
+  const LEN_NAME = { 0.25: "semiquaver", 0.5: "quaver", 0.75: "dotted quaver", 1: "crotchet", 1.5: "dotted crotchet", 2: "minim", 3: "dotted minim" };
+  const dotted = (p) => p.some((n) => n === 0.75 || n === 1.5 || n === 3);
+  /** Words for a rhythm, used for screen readers and explanations. */
+  const describe = (p) => {
     const parts = [];
-    let pos = 0;
-    for (let i = 0; i < p.length; i++) {
-      if (p[i] === 0.5) {
-        const beatNo = Math.floor(pos / beatLen + 1e-9);
-        let n = 1;
-        while (p[i + n] === 0.5 && Math.floor((pos + n * 0.5) / beatLen + 1e-9) === beatNo) n++;
-        parts.push(n > 1 ? `${n} quavers` : "quaver");
-        pos += n * 0.5; i += n - 1;
-      } else { parts.push(LEN_NAME[p[i]]); pos += p[i]; }
+    for (let i = 0; i < p.length; ) {
+      let n = 1;
+      while (p[i + n] === p[i]) n++;
+      parts.push(n > 1 ? `${n} ${LEN_NAME[p[i]]}s` : LEN_NAME[p[i]]);
+      i += n;
     }
     return parts.join(", ");
-  }
+  };
 
-  function pickMetre() {
-    const entries = Object.entries(RHYTHM_METRES);
-    let r = Math.random() * entries.reduce((n, [, m]) => n + m.weight, 0);
-    for (const [label, m] of entries) { if ((r -= m.weight) < 0) return label; }
-    return "4/4";
+  const every = Object.entries(RHYTHM_METRES).flatMap(([metre, m]) => m.patterns.map((pattern) => ({ metre, beat: m.beat, pattern })));
+
+  // Answers are dealt from a shuffled deck, so all four time signatures keep coming up.
+  let deck = [];
+  const nextMetre = () => {
+    if (!deck.length) deck = R.shuffle(Object.keys(RHYTHM_METRES));
+    return deck.pop();
+  };
+
+  /** The right answer plus three others, always including one from the time signature most easily confused with it. */
+  function choices(answer) {
+    const picks = [answer];
+    const take = (filter) => {
+      const pool = every.filter((c) => !picks.includes(c) && filter(c));
+      picks.push(R.pick(pool));
+    };
+    take((c) => c.metre === RHYTHM_METRES[answer.metre].confuser);
+    take((c) => (R.chance(0.7) ? c.metre === answer.metre : true));
+    take(() => true);
+    return R.shuffle(picks);
   }
 
   function rhythms() {
-    const time = pickMetre();
-    const M = RHYTHM_METRES[time];
-    const PATTERNS = M.patterns;
-    const compound = M.beat === 1.5;
-    const answer = R.below(PATTERNS.length);
-    const pat = PATTERNS[answer];
-    const others = R.shuffle([...PATTERNS.keys()].filter((i) => i !== answer));
-    const picks = R.shuffle([answer, others[0], others[1], others[2]]);
-    const unit = compound ? 0.42 : 0.5; // seconds per crotchet
-    const barLen = M.beats * M.beat;
+    const metre = nextMetre();
+    const m = RHYTHM_METRES[metre];
+    const answer = R.pick(every.filter((c) => c.metre === metre));
+    const picks = choices(answer);
+    const second = 0.5; // seconds per crotchet
+    const barLen = m.beats * m.beat * second;
     const events = [];
     const pitches = [64, 64, 67, 64, 62, 64];
-    // bar 0: count-in on the main beats, bars 1 and 2: the rhythm with quiet beat clicks
-    for (let b = 0; b < M.beats; b++) events.push(E().click(b * M.beat * unit, b === 0, 0.7));
-    for (let rep = 0; rep < 2; rep++) {
-      const barStart = (1 + rep) * barLen;
-      let t = barStart * unit;
-      pat.forEach((len, i) => {
-        events.push(note(t, len * unit * 0.92, pitches[i % pitches.length], 0.85));
-        t += len * unit;
-      });
-      for (let b = 0; b < M.beats; b++) events.push(E().click((barStart + b * M.beat) * unit, b === 0, 0.35));
+    const clicks = (start, vol) => {
+      for (let b = 0; b < m.beats; b++) events.push(E().click(start + b * m.beat * second, b === 0, vol));
+    };
+    // bar 0: count-in, with quiet taps showing how each beat divides. Bars 1 and 2: the rhythm.
+    clicks(0, 0.7);
+    for (let b = 0; b < m.beats; b++) {
+      for (let s = 1; s < m.subs; s++) events.push(E().drum(((b + s / m.subs) * m.beat) * second, "hat", 0.2));
     }
-    const name = (p) => describe(p, M.beat);
+    for (let rep = 0; rep < 2; rep++) {
+      const start = barLen * (rep + 1);
+      let t = start;
+      answer.pattern.forEach((len, i) => {
+        events.push(note(t, len * second * 0.92, pitches[i % pitches.length], 0.85));
+        t += len * second;
+      });
+      clicks(start, 0.35);
+    }
     return {
       category: "rhythms",
-      prompt: `${M.beats} hi-hat taps count you in, then a one-bar rhythm in ${time} is played twice. Which rhythm is it?`,
-      options: picks.map((i) => name(PATTERNS[i])),
-      pictures: picks.map((i) => ({ lens: PATTERNS[i].slice(), time })),
+      prompt: "A one-bar count-in, then a one-bar rhythm played twice. The low drum marks the first beat of each bar. Which written rhythm is it?",
+      options: picks.map((c) => `${c.metre}: ${describe(c.pattern)}`),
+      pictures: picks.map((c) => ({ time: c.metre, lens: c.pattern.slice() })),
       correct: picks.indexOf(answer),
       events,
       allow: AT.synth.AGILE,
-      explanation: `The rhythm in ${time} was: ${name(pat)}. ` +
-        (compound
-          ? `${time} has ${M.beats} dotted-crotchet beats, each split into three quavers ("straw-ber-ry"). A crotchet then a quaver fills one beat with a long-short swing.`
-          : dotted(pat)
-            ? "A dot makes a note half as long again, so a dotted crotchet lasts 1½ beats and is usually followed by a quaver."
-            : `Count the ${M.beats} crotchet beats and listen for where the notes split into quavers.`),
+      explanation: `The rhythm was in ${metre}: ${describe(answer.pattern)}.` +
+        (dotted(answer.pattern) ? " A dot makes a note half as long again." : "") +
+        ` Count ${m.beats} main beats in each bar, each dividing into ${m.subs}.`,
     };
   }
 
-  AT.rhythm = { timeSignatures, rhythms };
+  AT.rhythm = { timeSignatures, rhythms, RHYTHM_METRES };
 })(typeof window !== "undefined" ? window : globalThis);

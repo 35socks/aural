@@ -25,7 +25,7 @@
     { key: "progressions", outcome: 2, pc: "2(c)", name: "Chord progressions", mock: 7,
       blurb: "Three and four chord progressions, named by Roman numeral (I, ii, IV, V, vi).", gen: () => AT.pitch.progressions() },
     { key: "rhythms", outcome: 3, pc: "3(a)", name: "Rhythms", mock: 5,
-      blurb: "One-bar rhythms in 4/4, 3/4, 6/8 and 9/8, including dotted rhythms.", gen: () => AT.rhythm.rhythms() },
+      blurb: "Written one-bar rhythms in 4/4, 3/4, 6/8 and 9/8, including dotted rhythms.", gen: () => AT.rhythm.rhythms() },
     { key: "timeSignatures", outcome: 3, pc: "3(b)", name: "Time signatures", mock: 5,
       blurb: "4/4, 3/4, 6/8 and 9/8.", gen: () => AT.rhythm.timeSignatures() },
   ];

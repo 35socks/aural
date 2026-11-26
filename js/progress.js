@@ -2,7 +2,7 @@
 (function (g) {
   const AT = g.AT;
   const KEY = "aural-trainer-progress-v2";
-    const DEFAULT_SETTINGS = { inst: "mixed", live: false, groups: [], volume: 0.8, theme: "auto", goal: 20, tempo: 1, motion: true };
+    const DEFAULT_SETTINGS = { inst: "mixed", groups: [], hooks: {}, volume: 0.8, theme: "auto", goal: 20, tempo: 1, motion: true };
   const blankExtra = () => ({ days: {}, xp: 0, ach: {}, mistakes: [], best: 0 });
 
   let data = { stats: {}, mocks: [], settings: { ...DEFAULT_SETTINGS }, extra: blankExtra() };
@@ -25,15 +25,26 @@
     } catch (e) { storageOk = false; }
   }
 
-  function save() {
+  const listeners = [];
+  function persist() {
     try { g.localStorage.setItem(KEY, JSON.stringify(data)); storageOk = true; }
     catch (e) { storageOk = false; }
   }
+  /** Writes a change made by the person, and tells anything listening (account saving). */
+  function save() { persist(); listeners.forEach((fn) => fn()); }
 
   const pct = (c, t) => (t === 0 ? 0 : Math.round((c * 100) / t));
 
   AT.progress = {
-        load,
+    load,
+    key: KEY,
+    raw: () => JSON.parse(JSON.stringify(data)),
+    /** Swaps in data from an account. Does not count as a change by the person. */
+    replace(next) {
+      data = { stats: next.stats, mocks: next.mocks, settings: { ...DEFAULT_SETTINGS, ...next.settings }, extra: { ...blankExtra(), ...next.extra } };
+      persist();
+    },
+    onChange: (fn) => listeners.push(fn),
     storageOk: () => storageOk,
     setting: (k) => data.settings[k],
     setSetting(k, v) { data.settings[k] = v; save(); },
